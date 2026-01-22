@@ -914,7 +914,7 @@ export class RoomPageComponent {
     if (directionMap[key]) {
       event.preventDefault();
       const room = await this.room$?.pipe(take(1)).toPromise();
-      if (room && !this.isSpectator(room)) {
+      if (room && !this.isSpectator(room) && this.isMyTurn(room)) {
         await this.handleMove(room, directionMap[key]);
         // Mozgás után váltsunk át arra a szintre, ahol a játékos van
         const updatedRoom = await this.room$?.pipe(take(1)).toPromise();
@@ -943,6 +943,9 @@ export class RoomPageComponent {
     game.guardPositions[2].pos = game.guardPositions[2].moves[0]; // kezdőpozíció beállítása
     game.guardPositions[2].target = game.guardPositions[2].moves[1]; // célpozíció beállítása
     game.guardPositions[2].moves = game.guardPositions[2].moves.slice(2); // első két lépés már felhasználva
+
+    game.playerOrder = [...room.players];
+
     await this.roomService.startGame(this.roomId, game);
   }
 
@@ -974,7 +977,7 @@ export class RoomPageComponent {
   }
 
   protected canMove(room: Room, fIdx: number, tIdx: number, dir: 'up' | 'right' | 'bottom' | 'left' | 'floorUp' | 'floorDown'): boolean {
-    if (this.isSpectator(room) || !room.game) return false;
+    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
 
     if (dir === 'floorUp') {
       return fIdx < 2 && room.game.floors[fIdx].tiles[tIdx].type === 'Stairs';
@@ -997,7 +1000,7 @@ export class RoomPageComponent {
   }
 
   protected canInteract(room: Room, fIdx: number, tIdx: number): boolean {
-    if (this.isSpectator(room) || !room.game) return false;
+    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
     const playerPositions = room.game.playerPositions || {};
     const myPos = playerPositions[this.playerName ?? ''];
 
@@ -1068,11 +1071,14 @@ export class RoomPageComponent {
       game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
       game.floors[fIdx].tiles[tIdx].revealed = true;
       this.activeFloorIdx = fIdx;
+      game.startingPosition = tIdx;
       await this.roomService.setGameState(this.roomId, game);
+      console.log(game.startingPosition);
     } else {
       const tile = game.floors[fIdx].tiles[tIdx];
       if (!tile.revealed) {
         // Ha még nincs felfedve: CSAK FELFEDÉS (Peek)
+        if (!await this.useActionPoint(game, 1)) {return;}
         tile.revealed = true;
         await this.roomService.setGameState(this.roomId, game);
       } else {
@@ -1089,7 +1095,7 @@ export class RoomPageComponent {
   }
 
   private async handleMove(room: Room, dir: 'up' | 'right' | 'bottom' | 'left' | 'floorUp' | 'floorDown') {
-    if (!room.game) return;
+    if (!room.game || !this.isMyTurn(room)) return;
     const name = this.playerName ?? '';
     const myPos = room.game.playerPositions?.[name];
     if (!myPos) return;
@@ -1120,6 +1126,7 @@ export class RoomPageComponent {
 
   private async moveToTile(room: Room, fIdx: number, tIdx: number) {
     const game: GameState = JSON.parse(JSON.stringify(room.game));
+    if (!await this.useActionPoint(game, 1)) {return;}
     const name = this.playerName ?? '';
     game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
     game.floors[fIdx].tiles[tIdx].revealed = true; // Rálépés felfedi
@@ -1254,5 +1261,23 @@ export class RoomPageComponent {
     });
   }
 
+  private async useActionPoint(game: GameState, cost: number) {
+    if (game.currentAP < cost) {return false;}
+    game.currentAP -= cost;
+    if (game.currentAP <= 0) {
+      game.currentPlayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
+      game.currentAP = 4;
+
+      console.log(game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined, game.startingPosition)
+      if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
+        game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
+      }
+    }
+    return true;
+  }
+
+  protected isMyTurn(room: Room): boolean {
+    return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName;
+  }
 
 }

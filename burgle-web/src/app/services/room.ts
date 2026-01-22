@@ -33,7 +33,10 @@ export interface GameState {
   floors: Floor[];
   guardPositions: { floor: number; pos: { x: number; y: number }; target: { x: number; y: number }; speed: number, moves: { x: number; y: number }[] }[];
   playerPositions: { [playerName: string]: { floor: number; tileIdx: number } };
-  // egyéb közös állapotok...
+  playerOrder: string[]; // ordered list of player names
+  currentPlayerIdx: number; // whose turn
+  currentAP: number;
+  startingPosition: number | null;
 }
 
 export type Room = {

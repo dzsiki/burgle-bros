@@ -11,6 +11,7 @@ export const leaveRoomGuard: CanDeactivateFn<RoomPageComponent> =
 
 export const routes: Routes = [
   { path: '', component: LobbyComponent },
+  { path: '', redirectTo: '/lobby', pathMatch: 'full' },
   {
     path: 'room/:id',
     component: RoomPageComponent,

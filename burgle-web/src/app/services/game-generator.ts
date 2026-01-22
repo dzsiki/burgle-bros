@@ -58,7 +58,11 @@ export function generateGame(seed: string): GameState {
       { floor: 1, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 3, moves: shuffle([...guardtargets], random)},
       { floor: 2, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 4, moves: shuffle([...guardtargets], random)},
     ],
-    playerPositions: {}
+    playerPositions: {},
+    playerOrder: [],
+    currentPlayerIdx: 0,
+    currentAP: 4,
+    startingPosition: null
   };
 }
 
