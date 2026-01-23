@@ -1,12 +1,6 @@
 
 import { GameState, Tile, TileType, Floor } from './room';
 
-const ALL_TILE_TYPES: TileType[] = [
-  'Safe', 'Stairs', 'Atrium', 'Camera', 'SafetyLock', 'Fingerprint', 'Lobby', 'Keypad', 'Laboratory',
-  'Laser', 'Toilet', 'Motion', 'Scanner', 'SecretDoor', 'ServiceDuct','Thermo','Walkway', 'ComputerLaser',
-  'ComputerFingerprint', 'ComputerMotion'
-];
-
 const ALL_TILE_3_FlOOR: TileType[] = [
   'ServiceDuct', 'ServiceDuct', 'Laser', 'Laser', 'Laser', 'Thermo', 'Thermo', 'Thermo', 'Fingerprint', 'Fingerprint',
   'Fingerprint', 'ComputerMotion', 'ComputerLaser', 'ComputerFingerprint', 'Camera', 'Camera', "Camera", 'Camera',
@@ -62,7 +56,8 @@ export function generateGame(seed: string): GameState {
     playerOrder: [],
     currentPlayerIdx: 0,
     currentAP: 4,
-    startingPosition: null
+    startingPosition: null,
+    healths: {}
   };
 }
 
@@ -96,7 +91,7 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
         bottom: y === 3,
         left: x === 0
       },
-      tokens: [],
+      tokens: type === 'Toilet' ? 3 : 0,
       number: Math.floor(random() * 6) + 1
     });
   }

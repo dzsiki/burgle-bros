@@ -1,16 +1,16 @@
 import { Component, inject, HostListener, ChangeDetectorRef } from '@angular/core';
-import { AsyncPipe } from '@angular/common';
+import {AsyncPipe, NgOptimizedImage} from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { RoomService, Room, GameState, getRoomDisplayName } from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
 import { generateGame } from '../services/game-generator';
-import { tap, take } from 'rxjs';
+import {tap, take, firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-room-page',
   standalone: true,
-  imports: [AsyncPipe],
+  imports: [AsyncPipe, NgOptimizedImage],
   template: `
     @if (room$ | async; as room) {
       <div class="header-bar">
@@ -73,117 +73,142 @@ import { tap, take } from 'rxjs';
             <button class="btn btn-primary btn-large" (click)="start(room)">Játék indítása</button>
           </div>
         } @else if (room.phase === 'play') {
-          <div class="game-area">
-            @if (room.game) {
-              <div class="floor-navigation">
-                <button class="nav-btn" [disabled]="activeFloorIdx === 0" (click)="changeFloor(-1)">◀</button>
-                <div class="floor-indicator">{{ activeFloorIdx + 1 }}. szint</div>
-                <button class="nav-btn" [disabled]="activeFloorIdx === 2" (click)="changeFloor(1)">▶</button>
-              </div>
+          <div class="game-layout">
+            <div class="side-panel-left"></div>
+            <div class="game-area">
+              @if (room.game) {
+                <div class="floor-navigation">
+                  <button class="nav-btn" [disabled]="activeFloorIdx === 0" (click)="changeFloor(-1)">◀</button>
+                  <div class="floor-indicator">{{ activeFloorIdx + 1 }}. szint</div>
+                  <button class="nav-btn" [disabled]="activeFloorIdx === 2" (click)="changeFloor(1)">▶</button>
+                </div>
 
-              <div class="floors-container">
-                @let floor = room.game.floors[activeFloorIdx];
-                <div class="floor">
-                  <div class="grid">
-                    @for (tile of floor.tiles; track $index; let tIdx = $index) {
-                      <div class="tile"
-                           [class.revealed]="tile.revealed"
-                           [class.clickable]="canInteract(room, activeFloorIdx, tIdx)"
-                           [class.edge-top]="tIdx < 4"
-                           [class.edge-bottom]="tIdx >= 12"
-                           [class.edge-left]="tIdx % 4 === 0"
-                           [class.edge-right]="tIdx % 4 === 3"
-                           (click)="handleTileClick(room, activeFloorIdx, tIdx)">
+                <div class="floors-container">
+                  @let floor = room.game.floors[activeFloorIdx];
+                  <div class="floor">
+                    <div class="grid">
+                      @for (tile of floor.tiles; track $index; let tIdx = $index) {
+                        <div class="tile"
+                             [class.revealed]="tile.revealed"
+                             [class.clickable]="canInteract(room, activeFloorIdx, tIdx)"
+                             [class.edge-top]="tIdx < 4"
+                             [class.edge-bottom]="tIdx >= 12"
+                             [class.edge-left]="tIdx % 4 === 0"
+                             [class.edge-right]="tIdx % 4 === 3"
+                             (click)="handleTileClick(room, activeFloorIdx, tIdx)">
 
-                        <!-- Movement arrows for current tile -->
-                        @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                          <div class="arrows-container">
-                            @if (canMove(room, activeFloorIdx, tIdx, 'up')) {
-                              <div class="arrow arrow-up" (click)="handleArrowMove($event, room, 'up')">▲</div>
-                            }
-                            @if (canMove(room, activeFloorIdx, tIdx, 'right')) {
-                              <div class="arrow arrow-right" (click)="handleArrowMove($event, room, 'right')">▶</div>
-                            }
-                            @if (canMove(room, activeFloorIdx, tIdx, 'bottom')) {
-                              <div class="arrow arrow-bottom" (click)="handleArrowMove($event, room, 'bottom')">▼</div>
-                            }
-                            @if (canMove(room, activeFloorIdx, tIdx, 'left')) {
-                              <div class="arrow arrow-left" (click)="handleArrowMove($event, room, 'left')">◀</div>
-                            }
-                            @if (canMove(room, activeFloorIdx, tIdx, 'floorUp')) {
-                              <div class="arrow arrow-floor-up" (click)="handleArrowMove($event, room, 'floorUp')">↑
-                              </div>
-                            }
-                            @if (canMove(room, activeFloorIdx, tIdx, 'floorDown')) {
-                              <div class="arrow arrow-floor-down" (click)="handleArrowMove($event, room, 'floorDown')">
-                                ↓
-                              </div>
-                            }
-                          </div>
-                        }
-
-                        @if (activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs' && tile.revealed) {
-                          <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
-                        }
-
-                        <!-- Show image for revealed tiles if matching asset exists; otherwise fall back to text -->
-                        @if (tile.revealed) {
-                          @let imgUrl = getOrLoadTileImage(tile.type);
-                          @if (imgUrl) {
-                            <img class="tile-img" src="{{ imgUrl }}" alt="{{ tile.type }}"/>
-                          } @else {
-                            <span class="tile-type">{{ tile.type }}</span>
-                          }
-                        } @else {
-                          <span class="tile-type">?</span>
-                        }
-
-                        <!-- Guard figure if a guard is on this tile -->
-                        @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
-                          <div class="guard-figure" title="Őr">🛡️</div>
-                        }
-                        <!-- Crosshair if this tile is a guard's target -->
-                        @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
-                          <div class="guard-target" title="Őr célpont">🎯</div>
-                        }
-
-                        <div class="walls">
-                          <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
-                          <div class="wall wall-right" [class.is-real]="tile.walls.right"></div>
-                          <div class="wall wall-bottom" [class.is-real]="tile.walls.bottom"></div>
-                          <div class="wall wall-left" [class.is-real]="tile.walls.left"></div>
-                        </div>
-                        <div class="players-on-tile">
-                          @for (pName of getPlayersOnTile(room, activeFloorIdx, tIdx); track pName) {
-                            <div class="player-pawn" [title]="pName"
-                                 [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
+                          <!-- Movement arrows for current tile -->
+                          @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                            <div class="arrows-container">
+                              @if (canMove(room, activeFloorIdx, tIdx, 'up')) {
+                                <div class="arrow arrow-up" (click)="handleArrowMove($event, room, 'up')">▲</div>
+                              }
+                              @if (canMove(room, activeFloorIdx, tIdx, 'right')) {
+                                <div class="arrow arrow-right" (click)="handleArrowMove($event, room, 'right')">▶</div>
+                              }
+                              @if (canMove(room, activeFloorIdx, tIdx, 'bottom')) {
+                                <div class="arrow arrow-bottom" (click)="handleArrowMove($event, room, 'bottom')">▼
+                                </div>
+                              }
+                              @if (canMove(room, activeFloorIdx, tIdx, 'left')) {
+                                <div class="arrow arrow-left" (click)="handleArrowMove($event, room, 'left')">◀</div>
+                              }
+                              @if (canMove(room, activeFloorIdx, tIdx, 'floorUp')) {
+                                <div class="arrow arrow-floor-up" (click)="handleArrowMove($event, room, 'floorUp')">↑
+                                </div>
+                              }
+                              @if (canMove(room, activeFloorIdx, tIdx, 'floorDown')) {
+                                <div class="arrow arrow-floor-down"
+                                     (click)="handleArrowMove($event, room, 'floorDown')">
+                                  ↓
+                                </div>
+                              }
                             </div>
                           }
-                          <div class="player-pawn number-on-tile" [title]="tile.number">{{ tile.number }}</div>
+
+                          @if (activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs' && tile.revealed) {
+                            <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
+                          }
+                          @if (tile.type === 'Toilet' && tile.revealed){
+                            <div class="tokennumber" title="Token mennyiség">{{tile.tokens}}</div>
+                          }
+
+                          <!-- Show image for revealed tiles if matching asset exists; otherwise fall back to text -->
+                          @if (tile.revealed) {
+                            @let imgUrl = getOrLoadTileImage('room-' + tile.type);
+                            @if (imgUrl && imgUrl != '') {
+                              <img class="tile-img" [ngSrc]="imgUrl" width="1" height="1" alt="{{ tile.type }}"/>
+                            } @else {
+                              <span class="tile-type">{{ tile.type }}</span>
+                            }
+                          } @else {
+                            <span class="tile-type">?</span>
+                          }
+
+                          <!-- Guard figure if a guard is on this tile -->
+                          @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
+                            <div class="guard-figure" title="Őr">🛡️</div>
+                          }
+                          <!-- Crosshair if this tile is a guard's target -->
+                          @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
+                            <div class="guard-target" title="Őr célpont">🎯</div>
+                          }
+
+                          <div class="walls">
+                            <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
+                            <div class="wall wall-right" [class.is-real]="tile.walls.right"></div>
+                            <div class="wall wall-bottom" [class.is-real]="tile.walls.bottom"></div>
+                            <div class="wall wall-left" [class.is-real]="tile.walls.left"></div>
+                          </div>
+                          <div class="players-on-tile">
+                            @for (pName of getPlayersOnTile(room, activeFloorIdx, tIdx); track pName) {
+                              <div class="player-pawn" [title]="pName"
+                                   [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
+                              </div>
+                            }
+                            <div class="player-pawn number-on-tile" [title]="tile.number">{{ tile.number }}</div>
+                          </div>
+                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'up')) {
+                            <div class="guard-path-bar bar-up"></div>
+                          }
+                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'right')) {
+                            <div class="guard-path-bar bar-right"></div>
+                          }
+                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'down')) {
+                            <div class="guard-path-bar bar-down"></div>
+                          }
+                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'left')) {
+                            <div class="guard-path-bar bar-left"></div>
+                          }
+                          @if (isGuardReachableThisTurn(room, activeFloorIdx, tIdx)) {
+                            <div class="guard-path-dot"></div>
+                          }
                         </div>
-                        @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'up')) {
-                          <div class="guard-path-bar bar-up"></div>
-                        }
-                        @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'right')) {
-                          <div class="guard-path-bar bar-right"></div>
-                        }
-                        @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'down')) {
-                          <div class="guard-path-bar bar-down"></div>
-                        }
-                        @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'left')) {
-                          <div class="guard-path-bar bar-left"></div>
-                        }
-                        @if (isGuardReachableThisTurn(room, activeFloorIdx, tIdx)) {
-                          <div class="guard-path-dot"></div>
-                        }
-                      </div>
-                    }
+                      }
+                    </div>
                   </div>
                 </div>
+              } @else {
+                <p style="padding: 20px; text-align: center;">Pálya betöltése...</p>
+              }
+            </div>
+            <div class="side-panel-right">
+              <div class="HP">
+                @for (i of [0,1,2]; track $index) {
+                  @let imgUrl = getOrLoadTileImage((i < (room.game?.healths?.[playerName] ?? 0)) ? 'ghost' : 'ghostdead');
+                  @if (imgUrl && imgUrl != '') {
+                  <img [ngSrc]="imgUrl"
+                       width="1" height="1" class="hp-icon" alt="HP"/>}}
               </div>
-            } @else {
-              <p style="padding: 20px; text-align: center;">Pálya betöltése...</p>
-            }
+              <div class="ap-counter">
+                Action Points: {{ room.game?.currentAP ?? 0 }}
+              </div>
+              <button class="btn btn-primary"
+                      [disabled]="!isMyTurn(room)"
+                      (click)="endTurn(room)">
+                End Turn
+              </button>
+            </div>
           </div>
         }
       </div>
@@ -354,7 +379,7 @@ import { tap, take } from 'rxjs';
 
         .btn-outline {
           background: transparent;
-          border: 1.5px solid #e2e8f0;
+          border: 2px solid #e2e8f0;
           color: #4a5568;
         }
 
@@ -404,7 +429,7 @@ import { tap, take } from 'rxjs';
 
         .nav-btn {
           background: white;
-          border: 1.5px solid #e2e8f0;
+          border: 2px solid #e2e8f0;
           border-radius: 50%;
           width: 40px;
           height: 40px;
@@ -610,7 +635,24 @@ import { tap, take } from 'rxjs';
           justify-content: center;
           font-size: 12px;
           z-index: 4;
-          opacity: 0.7;
+          opacity: 1;
+          border: 1px solid white;
+        }
+        .tokennumber {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background: #2d3748;
+          color: white;
+          width: 20px;
+          height: 20px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          z-index: 4;
+          opacity: 1;
           border: 1px solid white;
         }
 
@@ -809,6 +851,53 @@ import { tap, take } from 'rxjs';
           transform: translateY(-50%);
         }
 
+        .game-layout {
+          display: flex;
+          flex-direction: row;
+          align-items: flex-start;
+          width: 100%;
+          height: 100%;
+        }
+
+        .game-area {
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        .side-panel-right {
+          flex: 0 0 220px;
+          margin: 1rem 1rem 1rem 1rem;
+          align-items: flex-start;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          height: 100%;
+          justify-content: center;
+        }
+
+        .side-panel-left {
+          flex: 0 0 220px;
+          margin: 1rem 1rem 1rem 1rem;
+          align-items: flex-start;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          height: 100%;
+          justify-content: center;
+        }
+
+        .ap-counter {
+          font-size: 1.1rem;
+          font-weight: bold;
+          color: #2d3748;
+          margin-bottom: 0.5rem;
+        }
+
+        .hp-icon {
+          width: 50px;
+          height: 50px;
+        }
+
 
       </style>
 
@@ -823,6 +912,7 @@ export class RoomPageComponent {
   protected router = inject(Router);
   private roomService = inject(RoomService);
   private cdr = inject(ChangeDetectorRef);
+  private seed = '';
 
   roomId = this.route.snapshot.paramMap.get('id')!;
 
@@ -831,6 +921,7 @@ export class RoomPageComponent {
   room$ = this.roomService.watchRoom(this.roomId).pipe(
     tap(r => {
       if (r) {
+        this.seed = r.seed;
         this.currentPhase = r.phase;
         // Ha most kezdődött a játék és van pozíciónk, ugorjunk oda
         if (r.phase === 'play' && r.game) {
@@ -844,6 +935,7 @@ export class RoomPageComponent {
       }
     })
   );
+
 
   // mentett név
   protected activeFloorIdx = 0;
@@ -867,9 +959,8 @@ export class RoomPageComponent {
     // mark as loading (temporarily null) and try candidate paths
     this.tileImageCache[type] = null;
 
-    const sanitized = (s: string) => s.replace(/\s+/g, '-');
     const candidates = [
-      `/assets/room-${type.toLowerCase()}.png`,
+      `/assets/${type.toLowerCase()}.png`,
     ];
 
     const tryLoad = (idx: number) => {
@@ -913,11 +1004,11 @@ export class RoomPageComponent {
 
     if (directionMap[key]) {
       event.preventDefault();
-      const room = await this.room$?.pipe(take(1)).toPromise();
+      const room = await firstValueFrom(this.room$?.pipe(take(1)));
       if (room && !this.isSpectator(room) && this.isMyTurn(room)) {
         await this.handleMove(room, directionMap[key]);
         // Mozgás után váltsunk át arra a szintre, ahol a játékos van
-        const updatedRoom = await this.room$?.pipe(take(1)).toPromise();
+        const updatedRoom = await firstValueFrom(this.room$?.pipe(take(1)));
         if (updatedRoom && updatedRoom.game) {
           const myPos = updatedRoom.game.playerPositions?.[this.playerName ?? ''];
           if (myPos && myPos.floor !== this.activeFloorIdx) {
@@ -945,6 +1036,10 @@ export class RoomPageComponent {
     game.guardPositions[2].moves = game.guardPositions[2].moves.slice(2); // első két lépés már felhasználva
 
     game.playerOrder = [...room.players];
+
+    for (const player of room.players) {
+      game.healths[player] = 3; // minden játékos 3 HP-val indul
+    }
 
     await this.roomService.startGame(this.roomId, game);
   }
@@ -983,17 +1078,10 @@ export class RoomPageComponent {
       return fIdx < 2 && room.game.floors[fIdx].tiles[tIdx].type === 'Stairs';
     }
     if (dir === 'floorDown') {
-      return fIdx > 0 && room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs';
+      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway');
     }
 
-    const x = tIdx % 4;
-    const y = Math.floor(tIdx / 4);
-
-    let targetIdx = -1;
-    if (dir === 'up' && y > 0) targetIdx = tIdx - 4;
-    if (dir === 'right' && x < 3) targetIdx = tIdx + 1;
-    if (dir === 'bottom' && y < 3) targetIdx = tIdx + 4;
-    if (dir === 'left' && x > 0) targetIdx = tIdx - 1;
+    let targetIdx = this.calcTargetIdx(tIdx, dir);
 
     if (targetIdx === -1) return false;
     return !this.isWallBetween(room, fIdx, tIdx, targetIdx);
@@ -1012,6 +1100,9 @@ export class RoomPageComponent {
       return x === 0 || x === 3 || y === 0 || y === 3;
     }
 
+    if ((myPos.floor != fIdx && myPos.tileIdx != tIdx) && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].revealed) return true
+
+
     // Szinten belüli mozgás/peek
     if (myPos.floor === fIdx) {
       return this.isAdjacent(myPos.floor, myPos.tileIdx, fIdx, tIdx) &&
@@ -1022,11 +1113,11 @@ export class RoomPageComponent {
     if (tIdx === myPos.tileIdx) {
       // Felmenetel
       if (fIdx === myPos.floor + 1) {
-        return room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs';
+        return room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed);
       }
       // Lemenetel
       if (fIdx === myPos.floor - 1) {
-        return room.game.floors[fIdx].tiles[tIdx].type === 'Stairs';
+        return room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed);
       }
     }
 
@@ -1051,10 +1142,12 @@ export class RoomPageComponent {
     const tile1 = room.game.floors[f].tiles[t1];
     const tile2 = room.game.floors[f].tiles[t2];
 
-    if (x1 < x2) return tile1.walls.right || tile2.walls.left;
-    if (x1 > x2) return tile1.walls.left || tile2.walls.right;
-    if (y1 < y2) return tile1.walls.bottom || tile2.walls.top;
-    if (y1 > y2) return tile1.walls.top || tile2.walls.bottom;
+    if (tile2.type === 'SecretDoor' && tile2.revealed) return false;
+
+    if (x1 < x2) return (tile1.walls.right || tile2.walls.left);
+    if (x1 > x2) return (tile1.walls.left || tile2.walls.right);
+    if (y1 < y2) return (tile1.walls.bottom || tile2.walls.top);
+    if (y1 > y2) return (tile1.walls.top || tile2.walls.bottom);
     return false;
   }
 
@@ -1073,7 +1166,6 @@ export class RoomPageComponent {
       this.activeFloorIdx = fIdx;
       game.startingPosition = tIdx;
       await this.roomService.setGameState(this.roomId, game);
-      console.log(game.startingPosition);
     } else {
       const tile = game.floors[fIdx].tiles[tIdx];
       if (!tile.revealed) {
@@ -1110,18 +1202,24 @@ export class RoomPageComponent {
     }
 
     const tIdx = myPos.tileIdx;
-    const x = tIdx % 4;
-    const y = Math.floor(tIdx / 4);
-
-    let targetIdx = -1;
-    if (dir === 'up' && y > 0) targetIdx = tIdx - 4;
-    if (dir === 'right' && x < 3) targetIdx = tIdx + 1;
-    if (dir === 'bottom' && y < 3) targetIdx = tIdx + 4;
-    if (dir === 'left' && x > 0) targetIdx = tIdx - 1;
+    let targetIdx = this.calcTargetIdx(tIdx, dir);
 
     if (targetIdx !== -1 && !this.isWallBetween(room, myPos.floor, tIdx, targetIdx)) {
       await this.moveToTile(room, myPos.floor, targetIdx);
     }
+  }
+
+  private calcTargetIdx(tIdx: number, dir: 'up' | 'right' | 'bottom' | 'left'): number {
+    let targetIdx = -1;
+    const x = tIdx % 4;
+    const y = Math.floor(tIdx / 4);
+
+    if (dir === 'up' && y > 0) return tIdx - 4;
+    if (dir === 'right' && x < 3) return tIdx + 1;
+    if (dir === 'bottom' && y < 3) return tIdx + 4;
+    if (dir === 'left' && x > 0) return tIdx - 1;
+
+    return targetIdx;
   }
 
   private async moveToTile(room: Room, fIdx: number, tIdx: number) {
@@ -1130,6 +1228,13 @@ export class RoomPageComponent {
     const name = this.playerName ?? '';
     game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
     game.floors[fIdx].tiles[tIdx].revealed = true; // Rálépés felfedi
+
+    // Őrrel való találkozás ellenőrzése
+    let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
+    if (guardIdx === tIdx) {
+      game.healths[name] = (game.healths[name] || 1) - 1;
+    }
+
     await this.roomService.setGameState(this.roomId, game);
   }
 
@@ -1264,20 +1369,97 @@ export class RoomPageComponent {
   private async useActionPoint(game: GameState, cost: number) {
     if (game.currentAP < cost) {return false;}
     game.currentAP -= cost;
-    if (game.currentAP <= 0) {
-      game.currentPlayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
-      game.currentAP = 4;
-
-      console.log(game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined, game.startingPosition)
-      if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
-        game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
-      }
-    }
     return true;
+  }
+
+// Moves the guard on the given floor, step-by-step, with 1s delay per step
+  private async moveGuardWithDelay(game: GameState, floorIdx: number) {
+    const guardIdx = game.guardPositions.findIndex(g => g.floor === floorIdx);
+    if (guardIdx === -1) return;
+
+    const guard = game.guardPositions[guardIdx];
+    let path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
+
+    for (let i = 1; i <= guard.speed; i++) {
+      const nextIdx = path[1];
+      path = path.splice(1);
+      if (path.length === 1) {
+        guard.target = guard.moves[0];
+        guard.moves = guard.moves.slice(1);
+        if (guard.moves.length === 0) {
+          guard.speed++; // növeljük a sebességet, ha elfogytak a lépések
+
+          let guardtargets = [];
+          for (let i = 0; i < 16; i++) {
+            const x = i % 4;
+            const y = Math.floor(i / 4);
+
+            guardtargets.push({ x: x, y: y });
+          }
+          let seedNum = 0;
+          for (let i = 0; i < this.seed.length; i++) {
+            seedNum = ((seedNum << 5) - seedNum) + this.seed.charCodeAt(i);
+            seedNum |= 0;
+          }
+
+          const random = () => {
+            const x = Math.sin(seedNum++) * 10000;
+            return x - Math.floor(x);
+          };
+
+          const result = [...guardtargets];
+          for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+          }
+          guard.moves = result;
+        }
+      }
+      guard.pos = { x: nextIdx % 4, y: Math.floor(nextIdx / 4) };
+
+      for (const player of game.playerPositions ? Object.keys(game.playerPositions) : []) {
+        if (game.playerPositions[player].floor === floorIdx && game.playerPositions[player].tileIdx === nextIdx) {
+          if (game.floors[floorIdx].tiles[nextIdx].type === 'Toilet' && game.floors[floorIdx].tiles[nextIdx].tokens>0) {
+            game.floors[floorIdx].tiles[nextIdx].tokens --;
+          }else {
+            game.healths[player] = (game.healths[player] || 1) - 1;}
+        }
+
+        if (game.playerPositions[player].floor !== floorIdx && game.playerPositions[player].tileIdx === nextIdx && game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Atrium') {
+          game.healths[player] = (game.healths[player] || 1) - 1;}
+      }
+
+      await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
+      await new Promise(res => setTimeout(res, 2000/guard.speed)); // delay based on speed
+      path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
+    }
   }
 
   protected isMyTurn(room: Room): boolean {
     return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName;
+  }
+
+  async endTurn(room: Room) {
+    if (!room.game || !this.isMyTurn(room)) return;
+    const game: GameState = JSON.parse(JSON.stringify(room.game));
+
+    let nextplayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
+
+
+    // Move guard on the floor where the previous player ended their turn
+    const prevPlayerPos = game.playerPositions[game.playerOrder[game.currentPlayerIdx]];
+    if (prevPlayerPos) {
+      game.currentPlayerIdx = -1;
+      await this.moveGuardWithDelay(game, prevPlayerPos.floor);
+    }
+
+    game.currentPlayerIdx = nextplayerIdx;
+    game.currentAP = 4;
+
+    if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
+      game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
+    }
+    await this.roomService.setGameState(this.roomId, game);
   }
 
 }

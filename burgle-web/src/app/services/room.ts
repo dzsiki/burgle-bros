@@ -21,7 +21,7 @@ export interface Tile {
     bottom: boolean;
     left: boolean;
   };
-  tokens: string[]; // pl. alarm, hack, etc.
+  tokens: number; // pl. alarm, hack, etc.
   number: number; // 1-6
 }
 
@@ -37,6 +37,7 @@ export interface GameState {
   currentPlayerIdx: number; // whose turn
   currentAP: number;
   startingPosition: number | null;
+  healths: Record<string, number>;
 }
 
 export type Room = {
