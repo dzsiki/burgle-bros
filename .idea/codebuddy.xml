@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CodebuddyPersistentProjectState">
+    <option name="autoFileSelection" value="true" />
+    <option name="promptHistory">
+      <list>
+        <option value="szeretném a side-panelt berakni, de most is kicsit beljebb tolta balra a játékteret. Elfér szóval a játéktér maradjon a teljesen középen, függetlenül a jobb oldali sávtól" />
+        <option value="a side panelekben lévő dolgok legyenek horizontálisan középen" />
+        <option value="&lt;div class=&quot;HP&quot;&gt;&#10;                HP: {{ room.game?.healths[playerName ?? ''] ?? 'N/A' }}&#10;              &lt;/div&gt;&#10;&#10;Ezt csináld meg hogy ne legyen undefined possibly" />
+        <option value="room.ts:128 Calling Firebase APIs outside of an Injection context may destabilize your application leading to subtle change-detection and hydration bugs. Find more at https://github.com/angular/angularfire/blob/main/docs/zones.md" />
+        <option value="azt szeretném, hogy a HP div, amiben a hp-icon van az lkegyen középen az ap-counterrel együtt, de a hacks a tetején legyen, az end turn btn meg a legalján" />
+        <option value="azt akarom, hogy amikor a square-img vagy loot-img hoverel és megnő akkor kilóghasson a divből amibe van, minden fölé" />
+      </list>
+    </option>
+    <option name="selectedModel" value="codebuddy:CLAUDE_3_HAIKU_V7" />
+    <option name="ttsEnabled" value="false" />
+  </component>
+</project>

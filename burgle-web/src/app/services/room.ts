@@ -52,6 +52,10 @@ export interface GameState {
   hackFingerprint: number;
   hackLaser: number;
   keypads: keypadTile[];
+  tools: string[];
+  events: string[];
+  loots: string[];
+  inventory: { [playerName: string]: { loot: string[], tool: string[]} };
 }
 
 export type Room = {

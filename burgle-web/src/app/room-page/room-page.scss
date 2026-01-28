@@ -723,17 +723,6 @@
 
 }
 
-.side-panel-left {
-  flex: 0 0 220px;
-  margin: 1rem 1rem 1rem 1rem;
-  align-items: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  height: 100%;
-  justify-content: center;
-}
-
 .ap-counter {
   font-size: 1.1rem;
   font-weight: bold;
@@ -872,4 +861,107 @@
 
 .numberCracked {
   background: forestgreen;
+}
+
+
+.heatmap-grid {
+  display: grid;
+  width: 90%;
+  height: 90%;
+  grid-template-columns: repeat(4, 25%);
+  margin-top: 10px;
+}
+
+.heat-cell {
+  width: 100%;
+  aspect-ratio: 1/1;
+  box-sizing: border-box;
+}
+.heat-cell.border-right {
+  border-right: 4px solid black;
+}
+.heat-cell.border-bottom {
+  border-bottom: 4px solid black;
+}
+.heat-cell.border-left {
+  border-left: 4px solid black;
+}
+.heat-cell.border-top {
+  border-top: 4px solid black;
+}
+
+.side-panel-left {
+  width: 220px;
+  height: 100%;
+  margin: 1rem;
+  display: block;
+}
+
+/* FELSŐ TOOL LISTA */
+.tools-section {
+  height: 100%;            /* felső rész */
+  position: relative;
+  overflow-y: visible;
+  overflow-x: visible;
+  margin-bottom: 1rem;
+}
+
+.tools-inner {
+  position: relative;      /* !!! EZ KELL AZ ABSOLUTE TOOL KÉPEKNEK !!! */
+  height: 100%;
+}
+
+/* TOOL KÉPEK – ÁTFEDÉS */
+.square-img {
+  position: absolute;
+
+  width: 80%;
+  height: auto;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 4px solid black;
+
+  left: 50%;                      /* vízszintes közép */
+  transform: translateX(-50%);    /* vízszintes közép */
+  top: calc(var(--i) * 15%);      /* overlap */
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    z-index 0s;
+}
+
+/* ALSÓ RÉSZ – 3 LOOT SLOT */
+.loot-section {
+  background: #f5f7fa;
+  height: 60%;
+  position: relative;
+  overflow: visible;              /* hover kilógjon */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;            /* KÖZÉPRE */
+  gap: 0.2rem;
+}
+
+.loot-img {
+  height: 30%;
+  width: auto;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 4px solid black;
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    z-index 0s;
+}
+
+/* HOVER – kilóg bárhonnan */
+.square-img:hover,
+.loot-img:hover {
+  transform: scale(1.3);
+  z-index: 999;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
 }

@@ -1,10 +1,10 @@
-import { Component, inject, HostListener, ChangeDetectorRef } from '@angular/core';
+import {Component, inject, HostListener, ChangeDetectorRef, ViewChild, ElementRef} from '@angular/core';
 import {AsyncPipe, NgOptimizedImage} from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { RoomService, Room, GameState, getRoomDisplayName } from '../services/room';
+import {RoomService, Room, GameState, getRoomDisplayName, Tile} from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
-import { generateGame } from '../services/game-generator';
+import {generateGame, toolsList} from '../services/game-generator';
 import {tap, take, firstValueFrom} from 'rxjs';
 
 @Component({
@@ -74,7 +74,32 @@ import {tap, take, firstValueFrom} from 'rxjs';
           </div>
         } @else if (room.phase === 'play') {
           <div class="game-layout">
-            <div class="side-panel-left"></div>
+            <div class="side-panel-left">
+
+              <div class="tools-section" #toolsSection (wheel)="onToolWheel($event, (room.game?.inventory?.[playerName]?.tool?.length ?? 0) + (room.game?.inventory?.[playerName]?.loot?.length ?? 0))">
+                <div class="tools-inner" #toolsInner>
+                  @for (tool of room.game?.inventory?.[playerName]?.tool; track $index) {
+                    @let imgUrl = getOrLoadTileImage('tool-' + tool);
+                    @if (imgUrl && imgUrl != '') {
+                    <img class="square-img"
+                         [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}">
+                    }@else {
+                      <span class="tile-type">{{tool}}</span>
+                    }
+                  }
+                  @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(0, 3); track $index) {
+                    @let imgUrl = getOrLoadTileImage('loot-' + loot);
+                    @if (imgUrl && imgUrl != '') {
+                      <img class="square-img" [ngSrc]="imgUrl" [style.--i]="(room.game?.inventory?.[playerName]?.tool?.length ?? 0) + $index" width="1" height="1" alt="{{ loot }}"/>
+                    } @else {
+                      <span class="tile-type">{{loot}}</span>
+                    }
+                  }
+                </div>
+              </div>
+
+
+            </div>
             <div class="game-area">
               @if (room.game) {
                 <div class="floor-navigation">
@@ -135,34 +160,42 @@ import {tap, take, firstValueFrom} from 'rxjs';
                           @if (tile.type === 'ComputerFingerprint' && tile.revealed) {
                             <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackFingerprint }}
                               @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'fingerprint')" class="tokennumber plustoken btn btn-primary">+1</button>
+                                <button (click)="addToken(room,'fingerprint')"
+                                        class="tokennumber plustoken btn btn-primary">+1
+                                </button>
                               }
                             </div>
                           }
                           @if (tile.type === 'ComputerMotion' && tile.revealed) {
                             <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackMotion }}
                               @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'motion')" class="tokennumber plustoken btn btn-primary">+1</button>
+                                <button (click)="addToken(room,'motion')" class="tokennumber plustoken btn btn-primary">
+                                  +1
+                                </button>
                               }
                             </div>
                           }
                           @if (tile.type === 'ComputerLaser' && tile.revealed) {
                             <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackLaser }}
                               @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'laser')" class="tokennumber plustoken btn btn-primary">+1</button>
+                                <button (click)="addToken(room,'laser')" class="tokennumber plustoken btn btn-primary">
+                                  +1
+                                </button>
                               }
                             </div>
                           }
                           @if (tile.type === 'Safe' && tile.revealed) {
                             <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}
                               @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'safe', activeFloorIdx, tIdx)" class="tokennumber plustoken btn btn-primary">+1</button>
+                                <button (click)="addToken(room,'safe', activeFloorIdx, tIdx)"
+                                        class="tokennumber plustoken btn btn-primary">+1
+                                </button>
                               }
                             </div>
                           }
                           @if (tile.type === 'Keypad' && tile.revealed) {
                             <div class="tokennumber" title="Locked">
-                              {{KeypadOpened(room, activeFloorIdx, tIdx) ? '🟩' : '🔒'}}
+                              {{ KeypadOpened(room, activeFloorIdx, tIdx) ? '🟩' : '🔒' }}
                             </div>
                           }
 
@@ -205,9 +238,13 @@ import {tap, take, firstValueFrom} from 'rxjs';
                           </div>
                           @if (tile.revealed) {
                             @if (tile.type !== 'Safe') {
-                              <div [class.numberCracked]="tile.cracked" class="tile-number number-on-tile" [title]="tile.number">{{ tile.number }}</div>
+                              <div [class.numberCracked]="tile.cracked" class="tile-number number-on-tile"
+                                   [title]="tile.number">{{ tile.number }}
+                              </div>
                             } @else if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                              <button (click)="crackSafe(room, activeFloorIdx, tIdx)" class="tokennumber plustoken crackbtn btn btn-primary">🔑</button>
+                              <button (click)="crackSafe(room, activeFloorIdx, tIdx)"
+                                      class="tokennumber plustoken crackbtn btn btn-primary">🔑
+                              </button>
                             }
                           }
 
@@ -262,6 +299,18 @@ import {tap, take, firstValueFrom} from 'rxjs';
                 <div class="ap-counter">
                   Action Points: {{ room.game?.currentAP ?? 0 }}
                 </div>
+
+                <div class="heatmap-grid">
+                  @for (v of generateHeatmap((room.game?.floors?.[activeFloorIdx]?.tiles ?? [])); track $index) {
+                    <div class="heat-cell" [style.background]="colorFromT(v)"
+                         [class.border-bottom]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.bottom"
+                         [class.border-right]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.right"
+                         [class.border-left]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.left"
+                         [class.border-top]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.top"
+                    ></div>
+                  }
+                </div>
+
               </div>
               <div class="panel-bottom endturnbtn">
                 <button class="btn btn-primary endturnbtn"
@@ -439,6 +488,10 @@ export class RoomPageComponent {
     game.guardPositions[2].moves = game.guardPositions[2].moves.slice(2); // első két lépés már felhasználva
 
     game.playerOrder = [...room.players];
+
+    for (let i = 0; i < room.players.length; i++) {
+        game.inventory[room.players[i]] = {loot: [], tool: []}
+    }
 
     for (const player of room.players) {
       game.healths[player] = 3; // minden játékos 3 HP-val indul
@@ -740,7 +793,14 @@ export class RoomPageComponent {
     }
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Fingerprint')
-    this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
+      this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
+
+    if(game.floors[fIdx].tiles[tIdx].type === 'Camera')
+      this.checkCameras(game,false, fIdx, tIdx);
+
+    if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory') {
+      this.drawTool(game,this.playerName)
+    }
 
     await this.roomService.setGameState(this.roomId, game);
   }
@@ -901,6 +961,20 @@ export class RoomPageComponent {
     return true;
   }
 
+  random = () => {
+    const x = Math.sin(this.seednum++) * 10000;
+    return x - Math.floor(x);
+  };
+
+  shuffle(inArray:any[]){
+    const result = [...inArray];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(this.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+
   private generateNewGuardTargets(guard: GameState['guardPositions'][0]) {
     let guardtargets = [];
     for (let i = 0; i < 16; i++) {
@@ -910,17 +984,7 @@ export class RoomPageComponent {
       guardtargets.push({ x: x, y: y });
     }
 
-    const random = () => {
-      const x = Math.sin(this.seednum++) * 10000;
-      return x - Math.floor(x);
-    };
-
-    const result = [...guardtargets];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    guard.moves = result;
+    guard.moves = this.shuffle(guardtargets);
   }
 
 // Moves the guard on the given floor, step-by-step, with 1s delay per step
@@ -968,6 +1032,10 @@ export class RoomPageComponent {
       }
 
       guard.pos = { x: nextIdx % 4, y: Math.floor(nextIdx / 4) };
+
+      if (game.floors[floorIdx].tiles[nextIdx].type === 'Camera' && game.floors[floorIdx].tiles[nextIdx].revealed) {
+        this.checkCameras(game, true, floorIdx, nextIdx);
+      }
 
       for (const player of game.playerPositions ? Object.keys(game.playerPositions) : []) {
         if (game.playerPositions[player].floor === floorIdx && game.playerPositions[player].tileIdx === nextIdx) {
@@ -1165,9 +1233,142 @@ export class RoomPageComponent {
     }
 
     if (!cracks.includes(false)) {
+      room.game.floors[activeFloorIdx].safeOpened = true;
       console.log('Safe cracked!');
     }
 
     await this.roomService.setGameState(this.roomId, room.game);
+  }
+
+  checkCameras(game: GameState, isGuard: boolean, pFloor: number, pTile: number) {
+    if (!game) return;
+
+    if (isGuard) {
+      for (let i = 0; i < game.playerOrder.length; i++) {
+        pFloor = game.playerPositions[game.playerOrder[i]].floor;
+        pTile = game.playerPositions[game.playerOrder[i]].tileIdx;
+        if (game.floors[pFloor].tiles[pTile].type === 'Camera') {
+          this.triggerAlarm(game, "Camera", pFloor, pTile);
+        }
+      }
+    } else {
+      for (let i = 0; i < game.guardPositions.length; i++) {
+        let gFloor = game.guardPositions[i].floor;
+        let gTile = game.guardPositions[i].pos.y * 4 + game.guardPositions[i].pos.x;
+        if (game.floors[gFloor].tiles[gTile].type === 'Camera') {
+          this.triggerAlarm(game, "Camera", pFloor, pTile);
+        }
+      }
+    }
+  }
+
+
+  protected generateHeatmap(tiles: Tile[]): number[] {
+    if (!tiles || tiles.length !== 16) return [];
+
+    const result: number[] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+    for (let start = 0; start < 16; start++) {
+      let distances = this.bfsDistanceFrom(start, tiles);
+
+      for (let i = 0; i < distances.length; i++) {
+        if (distances[i] !== Infinity && distances[i] > 0) {
+          result[i] += 1 / distances[i];
+        }
+      }
+    }
+    let maxheat = Math.max(...result);
+    let minheat = Math.min(...result);
+
+    for (let i = 0; i < result.length; i++) {
+      result[i] = (result[i] - minheat) / (maxheat - minheat);
+    }
+    return result;
+  }
+
+
+  protected bfsDistanceFrom(startIdx: number, tiles: Tile[]): number[] {
+    const distances = new Array(16).fill(Infinity);
+    distances[startIdx] = 0;
+
+    const queue: number[] = [startIdx];
+
+    while (queue.length) {
+      const idx = queue.shift()!;
+      const x = idx % 4;
+      const y = Math.floor(idx / 4);
+
+      const neighbors = [];
+
+      // Fent
+      if (y > 0 && !tiles[idx].walls.top && !tiles[idx - 4].walls.bottom) {
+        neighbors.push(idx - 4);
+      }
+      // Lent
+      if (y < 3 && !tiles[idx].walls.bottom && !tiles[idx + 4].walls.top) {
+        neighbors.push(idx + 4);
+      }
+      // Bal
+      if (x > 0 && !tiles[idx].walls.left && !tiles[idx - 1].walls.right) {
+        neighbors.push(idx - 1);
+      }
+      // Jobb
+      if (x < 3 && !tiles[idx].walls.right && !tiles[idx + 1].walls.left) {
+        neighbors.push(idx + 1);
+      }
+
+      for (const n of neighbors) {
+        if (distances[n] === Infinity) {
+          distances[n] = distances[idx] + 1;
+          queue.push(n);
+        }
+      }
+    }
+
+    return distances;
+  }
+
+
+  colorFromT(t: number): string {
+    const r = Math.floor(255 * t);        // 0→0, 1→255
+    const b = Math.floor(255 * (1 - t));  // 0→255, 1→0
+    return `rgb(${r}, 0, ${b})`;
+  }
+
+  drawTool(game: GameState, player: string){
+    if (!game) return;
+
+    game.inventory[player].tool.push(game.tools[0])
+    game.tools = game.tools.splice(1);
+
+    if(game.tools.length === 0){
+      game.tools = this.shuffle([...toolsList])
+    }
+
+  }
+
+  @ViewChild('toolsInner') toolsInner!: ElementRef;
+  @ViewChild('toolsSection') toolsSection!: ElementRef;
+  private toolScroll = 0;
+  onToolWheel(e: WheelEvent, toolLen: number) {
+    e.preventDefault();
+
+    const tools = this.toolsInner.nativeElement
+      .querySelectorAll('.square-img');
+
+    const overlapPercent = 0.15; // 30%
+    const containerHeight = this.toolsSection.nativeElement.clientHeight;
+    const toolHeight = tools[0].clientHeight;
+
+    const virtualHeight = toolHeight + (toolLen - 1) * toolHeight * (1-overlapPercent);
+    let maxScroll = Math.max(0, virtualHeight - containerHeight);
+
+    console.log(maxScroll);
+
+    this.toolScroll += e.deltaY * 0.8;
+    this.toolScroll = Math.max(0, Math.min(this.toolScroll, maxScroll));
+
+    this.toolsInner.nativeElement.style.transform =
+      `translateY(${-this.toolScroll}px)`;
   }
 }

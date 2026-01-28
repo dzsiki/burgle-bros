@@ -6,14 +6,25 @@ const ALL_TILE_3_FlOOR: TileType[] = [
   'Fingerprint', 'ComputerMotion', 'ComputerLaser', 'ComputerFingerprint', 'Camera', 'Camera', "Camera", 'Camera',
   'Toilet', 'Motion', 'Motion', 'Motion', 'Scanner', 'Scanner', 'Scanner', 'Walkway', 'Walkway', 'Walkway',
   'SecretDoor', 'SecretDoor', 'Lobby', 'Lobby', 'Keypad', 'Keypad', 'Keypad', 'Laboratory', 'Laboratory', 'Atrium',
-  'Atrium', 'SafetyLock', 'SafetyLock', 'SafetyLock'
-]
+  'Atrium', 'SafetyLock', 'SafetyLock', 'SafetyLock']
 
 const ALL_TILE_2_FLOOR: TileType[] = [
   'ServiceDuct', 'ServiceDuct', 'Laser', 'Laser', 'Thermo', 'Thermo', 'Fingerprint', 'Fingerprint', 'ComputerMotion',
   'ComputerLaser', 'ComputerFingerprint', 'Camera', 'Camera', "Camera", 'Toilet', 'Motion', 'Motion', 'Walkway',
-  'Walkway', 'SecretDoor', 'SecretDoor', 'Lobby', 'Lobby', 'Keypad', 'Keypad', 'Laboratory', 'SafetyLock', 'SafetyLock'
-]
+  'Walkway', 'SecretDoor', 'SecretDoor', 'Lobby', 'Lobby', 'Keypad', 'Keypad', 'Laboratory', 'SafetyLock', 'SafetyLock']
+
+export const toolsList: string[] = [
+  'EMP', 'Makeup', 'Crowbar', 'Smoke', 'Virus', 'Blueprint', 'Crystal', 'Invisible', 'Thermal', 'Dynamite',
+  'Stethoscope', 'Roller', 'Donut'];
+
+export const lootList: string[] = [
+  'Bust', 'Stamp', 'Keycard', 'Cat', 'Gold', 'Goblet', 'Mirror', 'Painting', 'Isotope', 'Gemstone', 'Tiara', 'Chihuahua']
+
+export const eventList: string[] = [
+  'Espresso', 'Reboot', 'DeadDrop', 'BrownOut', 'Shoplifting', 'TimeLock', 'ChangeOfPlans', 'HeadsUp', 'VideoLoop',
+  'ThrowVoice', 'Peekhole', 'GoWithYourGut', 'KeycodeChange', 'Crash', 'Lampshade', 'BuddySystem', 'Squeak', 'Gymnastics',
+  'ShiftChange', 'SwitchSigns', 'LostGrip', 'DayDreaming', 'JumpTheGun', 'Jury-rig', 'FreightElevator', 'WhereIsHe']
+
 
 export function generateGame(seed: string): GameState {
   // Egy nagyon egyszerű determinisztikus véletlenszám-generátor a seed alapján
@@ -76,7 +87,11 @@ export function generateGame(seed: string): GameState {
     hackMotion: 0,
     hackFingerprint: 0,
     hackLaser: 0,
-    keypads: keypadTiles
+    keypads: keypadTiles,
+    tools: shuffle([...toolsList], random),
+    loots: shuffle([...lootList], random),
+    events: shuffle([...eventList], random),
+    inventory: {}
   };
 }
 
