@@ -23,10 +23,20 @@ export interface Tile {
   };
   tokens: number; // pl. alarm, hack, etc.
   number: number; // 1-6
+  cracked: boolean;
+}
+
+export interface keypadTile {
+  tries: number;
+  opened: boolean;
+  fIdx: number;
+  tIdx: number;
 }
 
 export interface Floor {
   tiles: Tile[]; // 1D array (4x4 flattened)
+  alarms: number[];
+  safeOpened: boolean;
 }
 
 export interface GameState {
@@ -38,6 +48,10 @@ export interface GameState {
   currentAP: number;
   startingPosition: number | null;
   healths: Record<string, number>;
+  hackMotion: number;
+  hackFingerprint: number;
+  hackLaser: number;
+  keypads: keypadTile[];
 }
 
 export type Room = {

@@ -129,8 +129,41 @@ import {tap, take, firstValueFrom} from 'rxjs';
                           @if (activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs' && tile.revealed) {
                             <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
                           }
-                          @if (tile.type === 'Toilet' && tile.revealed){
-                            <div class="tokennumber" title="Token mennyiség">{{tile.tokens}}</div>
+                          @if (tile.type === 'Toilet' && tile.revealed) {
+                            <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}</div>
+                          }
+                          @if (tile.type === 'ComputerFingerprint' && tile.revealed) {
+                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackFingerprint }}
+                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                <button (click)="addToken(room,'fingerprint')" class="tokennumber plustoken btn btn-primary">+1</button>
+                              }
+                            </div>
+                          }
+                          @if (tile.type === 'ComputerMotion' && tile.revealed) {
+                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackMotion }}
+                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                <button (click)="addToken(room,'motion')" class="tokennumber plustoken btn btn-primary">+1</button>
+                              }
+                            </div>
+                          }
+                          @if (tile.type === 'ComputerLaser' && tile.revealed) {
+                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackLaser }}
+                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                <button (click)="addToken(room,'laser')" class="tokennumber plustoken btn btn-primary">+1</button>
+                              }
+                            </div>
+                          }
+                          @if (tile.type === 'Safe' && tile.revealed) {
+                            <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}
+                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                <button (click)="addToken(room,'safe', activeFloorIdx, tIdx)" class="tokennumber plustoken btn btn-primary">+1</button>
+                              }
+                            </div>
+                          }
+                          @if (tile.type === 'Keypad' && tile.revealed) {
+                            <div class="tokennumber" title="Locked">
+                              {{KeypadOpened(room, activeFloorIdx, tIdx) ? '🟩' : '🔒'}}
+                            </div>
                           }
 
                           <!-- Show image for revealed tiles if matching asset exists; otherwise fall back to text -->
@@ -153,6 +186,9 @@ import {tap, take, firstValueFrom} from 'rxjs';
                           @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
                             <div class="guard-target" title="Őr célpont">🎯</div>
                           }
+                          @if (isAlarmOnTile(room, activeFloorIdx, tIdx)) {
+                            <div class="guard-target" title="Alarm">🚨</div>
+                          }
 
                           <div class="walls">
                             <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
@@ -166,8 +202,15 @@ import {tap, take, firstValueFrom} from 'rxjs';
                                    [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
                               </div>
                             }
-                            <div class="player-pawn number-on-tile" [title]="tile.number">{{ tile.number }}</div>
                           </div>
+                          @if (tile.revealed) {
+                            @if (tile.type !== 'Safe') {
+                              <div [class.numberCracked]="tile.cracked" class="tile-number number-on-tile" [title]="tile.number">{{ tile.number }}</div>
+                            } @else if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                              <button (click)="crackSafe(room, activeFloorIdx, tIdx)" class="tokennumber plustoken crackbtn btn btn-primary">🔑</button>
+                            }
+                          }
+
                           @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'up')) {
                             <div class="guard-path-bar bar-up"></div>
                           }
@@ -193,712 +236,62 @@ import {tap, take, firstValueFrom} from 'rxjs';
               }
             </div>
             <div class="side-panel-right">
-              <div class="HP">
-                @for (i of [0,1,2]; track $index) {
-                  @let imgUrl = getOrLoadTileImage((i < (room.game?.healths?.[playerName] ?? 0)) ? 'ghost' : 'ghostdead');
-                  @if (imgUrl && imgUrl != '') {
-                  <img [ngSrc]="imgUrl"
-                       width="1" height="1" class="hp-icon" alt="HP"/>}}
+              <div class="hacks panel-top">
+                <div>Motion hacks:  {{ room.game?.hackMotion }}</div>
+                <div>Laser hacks:   {{ room.game?.hackLaser }}</div>
+                <div>Fingerprint hacks: {{ room.game?.hackFingerprint }}</div>
+
+
+                <div class="dice-container panel-dice">
+                  @for (die of diceValues; track $index) {
+                    <div class="dice">{{ diceMap[die] }}</div>
+                  }
+                </div>
+
               </div>
-              <div class="ap-counter">
-                Action Points: {{ room.game?.currentAP ?? 0 }}
+              <div class="panel-middle">
+                <div class="HP">
+                  @for (i of [0, 1, 2]; track $index) {
+                    @let imgUrl = getOrLoadTileImage((i < (room.game?.healths?.[playerName] ?? 0)) ? 'ghost' : 'ghostdead');
+                    @if (imgUrl && imgUrl != '') {
+                      <img [ngSrc]="imgUrl"
+                           width="1" height="1" class="hp-icon" alt="HP"/>
+                    }
+                  }
+                </div>
+                <div class="ap-counter">
+                  Action Points: {{ room.game?.currentAP ?? 0 }}
+                </div>
               </div>
-              <button class="btn btn-primary"
-                      [disabled]="!isMyTurn(room)"
-                      (click)="endTurn(room)">
-                End Turn
-              </button>
+              <div class="panel-bottom endturnbtn">
+                <button class="btn btn-primary endturnbtn"
+                        [disabled]="!isMyTurn(room)"
+                        (click)="endTurn(room)">
+                  End Turn
+                </button>
+              </div>
             </div>
           </div>
         }
       </div>
 
+      @if (showAPDialog) {
+        <div class="ap-dialog-backdrop">
+          <div class="ap-dialog">
+            <h3>Mennyi Action Pointot használsz?</h3>
+            <p>(1 AP → Alarm aktiválódik, 2 AP → biztonságos)</p>
+
+            <div class="ap-dialog-buttons">
+              <button class="btn btn-danger" (click)="resolveAPDialog(false)">1 AP</button>
+              <button class="btn btn-success" (click)="resolveAPDialog(true)">2 AP</button>
+            </div>
+          </div>
+        </div>
+      }
+
+
       <style>
-        :host {
-          display: flex;
-          flex-direction: column;
-          height: 100dvh;
-          font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-          background-color: #f5f7fa;
-          color: #2d3748;
-          overflow: hidden;
-        }
-
-        .header-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem 1.5rem;
-          background: white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-          z-index: 10;
-          flex: 0 0 auto;
-        }
-
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 2rem;
-        }
-
-        .room-info {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .room-info h1 {
-          margin: 0;
-          font-size: 1.25rem;
-          color: #1a202c;
-          white-space: nowrap;
-        }
-
-        .status-badge {
-          display: inline-block;
-          padding: 0.1rem 0.5rem;
-          border-radius: 9999px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          margin-top: 0.1rem;
-          width: fit-content;
-        }
-
-        .status-badge.lobby {
-          background: #ebf8ff;
-          color: #2b6cb0;
-        }
-
-        .status-badge.play {
-          background: #f0fff4;
-          color: #2f855a;
-        }
-
-        .header-actions {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .room-details {
-          display: flex;
-          align-items: center;
-          gap: 1.5rem;
-        }
-
-        .main-content {
-          flex: 1;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .detail-item {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-        }
-
-        .detail-item .label {
-          font-weight: 600;
-          color: #718096;
-          white-space: nowrap;
-          font-size: 0.85rem;
-        }
-
-        .seed-input {
-          padding: 0.2rem 0.5rem;
-          border: 1px solid #e2e8f0;
-          border-radius: 4px;
-          font-family: monospace;
-          font-size: 0.85rem;
-          width: 80px;
-        }
-
-        .player-chips {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.4rem;
-        }
-
-        .player-chip {
-          display: flex;
-          align-items: center;
-          gap: 0.3rem;
-          padding: 0.15rem 0.5rem;
-          background: #edf2f7;
-          border: 1px solid #e2e8f0;
-          border-radius: 6px;
-          font-size: 0.8rem;
-        }
-
-        .player-chip.is-me {
-          border-color: #4299e1;
-          background: #ebf8ff;
-          color: #2b6cb0;
-        }
-
-        .player-icon {
-          width: 18px;
-          height: 18px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 0.65rem;
-        }
-
-        .is-me .player-icon {
-          background: #4299e1;
-          color: white;
-        }
-
-        .btn {
-          padding: 0.4rem 0.8rem;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          border: none;
-          font-size: 0.85rem;
-        }
-
-        .btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .btn-primary {
-          background: #4299e1;
-          color: white;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-          background: #3182ce;
-        }
-
-        .btn-outline {
-          background: transparent;
-          border: 2px solid #e2e8f0;
-          color: #4a5568;
-        }
-
-        .btn-outline:hover:not(:disabled) {
-          background: #f7fafc;
-          border-color: #cbd5e0;
-        }
-
-        .btn-danger {
-          background: #fff5f5;
-          color: #c53030;
-          border: 1px solid #feb2b2;
-        }
-
-        .btn-danger:hover:not(:disabled) {
-          background: #feb2b2;
-          color: #9b2c2c;
-        }
-
-        .btn-large {
-          padding: 0.8rem 1.6rem;
-          font-size: 1rem;
-        }
-
-        .lobby-start {
-          display: flex;
-          justify-content: center;
-          padding: 3rem;
-          flex: 1;
-        }
-
-        .game-area {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          padding: 0.5rem;
-        }
-
-        .floor-navigation {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 2rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .nav-btn {
-          background: white;
-          border: 2px solid #e2e8f0;
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          font-size: 1.2rem;
-          color: #4a5568;
-          transition: all 0.2s;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .nav-btn:hover:not(:disabled) {
-          background: #edf2f7;
-          border-color: #cbd5e0;
-          transform: scale(1.05);
-        }
-
-        .nav-btn:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-
-        .floor-indicator {
-          font-size: 1.1rem;
-          font-weight: 700;
-          color: #2d3748;
-          min-width: 100px;
-          text-align: center;
-        }
-
-        .floors-container {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          padding: 0;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        .floor {
-          width: 100%;
-          max-width: min(800px, 98vw, 82vh);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          flex-shrink: 0;
-        }
-
-        .floor h4 {
-          display: none;
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 0;
-          background: #0a0e14;
-          padding: 12px;
-          border-radius: 12px;
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          overflow: hidden;
-        }
-
-        .tile {
-          background: #4a5568;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: clamp(10px, 3.5vw, 20px);
-          position: relative;
-          text-align: center;
-          transition: all 0.2s;
-          color: #edf2f7;
-          aspect-ratio: 1 / 1;
-          user-select: none;
-          border-radius: 0;
-        }
-
-        .tile.clickable {
-          cursor: pointer;
-        }
-
-        .tile.clickable:hover {
-          background: #48bb78;
-          transform: scale(1.02);
-          z-index: 2;
-          box-shadow: 0 0 15px rgba(72, 187, 120, 0.4);
-        }
-
-        .tile.revealed {
-          background: white;
-          color: #2d3748;
-        }
-
-        .arrows-container {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          z-index: 15;
-        }
-
-        .arrow {
-          position: absolute;
-          background: #f6e05e;
-          color: #744210;
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          border-radius: 50%;
-          font-size: 14px;
-          pointer-events: auto;
-          transition: all 0.2s;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          border: 2px solid white;
-          z-index: 20;
-        }
-
-        .arrow-up {
-          top: 4px;
-          left: 50%;
-          transform: translateX(-50%);
-        }
-
-        .arrow-right {
-          right: 4px;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-
-        .arrow-bottom {
-          bottom: 4px;
-          left: 50%;
-          transform: translateX(-50%);
-        }
-
-        .arrow-left {
-          left: 4px;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-
-        .arrow-floor-up {
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: #4299e1;
-          color: white;
-        }
-
-        .arrow-floor-down {
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: #4299e1;
-          color: white;
-        }
-
-        .arrow:hover {
-          background: #faf089;
-          z-index: 25;
-        }
-
-        .arrow-up:hover {
-          transform: translateX(-50%) scale(1.5);
-        }
-
-        .arrow-right:hover {
-          transform: translateY(-50%) scale(1.5);
-        }
-
-        .arrow-bottom:hover {
-          transform: translateX(-50%) scale(1.5);
-        }
-
-        .arrow-left:hover {
-          transform: translateY(-50%) scale(1.5);
-        }
-
-        .arrow-floor-up:hover, .arrow-floor-down:hover {
-          background: #3182ce;
-          transform: translate(-50%, -50%) scale(1.5);
-        }
-
-        .down-exit-mark {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: #2d3748;
-          color: white;
-          width: 20px;
-          height: 20px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          z-index: 4;
-          opacity: 1;
-          border: 1px solid white;
-        }
-        .tokennumber {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          background: #2d3748;
-          color: white;
-          width: 20px;
-          height: 20px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          z-index: 4;
-          opacity: 1;
-          border: 1px solid white;
-        }
-
-        .wall {
-          position: absolute;
-          z-index: 100;
-          transition: background 0.2s;
-          background: transparent;
-          border: 2px dotted #1a202c;
-        }
-
-        .wall-top {
-          top: -1px;
-          left: -1px;
-          right: -1px;
-          height: 0;
-        }
-
-        .wall-bottom {
-          bottom: -1px;
-          left: -1px;
-          right: -1px;
-          height: 0;
-        }
-
-        .wall-left {
-          top: -1px;
-          left: -1px;
-          bottom: -1px;
-          width: 0;
-        }
-
-        .wall-right {
-          top: -1px;
-          right: -1px;
-          bottom: -1px;
-          width: 0;
-        }
-
-        .wall-right.wall.is-real {
-          width: 7px;
-          background: #1a202c;
-        }
-
-        .wall-left.wall.is-real {
-          width: 7px;
-          background: #1a202c;
-        }
-
-        .wall-bottom.wall.is-real {
-          height: 7px;
-          background: #1a202c;
-        }
-
-        .wall-top.wall.is-real {
-          height: 7px;
-          background: #1a202c;
-        }
-
-        /* Force solid walls on the perimeter */
-        .tile.edge-top .wall-top,
-        .tile.edge-bottom .wall-bottom,
-        .tile.edge-left .wall-left,
-        .tile.edge-right .wall-right {
-          background: #1a202c !important;
-        }
-
-        .players-on-tile {
-          position: absolute;
-          bottom: 4px;
-          right: 4px;
-          display: flex;
-          gap: 2px;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-          pointer-events: none;
-        }
-
-        .player-pawn {
-          width: 24px;
-          height: 24px;
-          background: #607085;
-          color: white;
-          border-radius: 50%;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid white;
-          font-weight: bold;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-          margin: 10px;
-          z-index: 11;
-        }
-
-        .player-pawn.is-me {
-          background: #e53e3e;
-          border-color: #f6e05e;
-        }
-
-        .player-pawn.number-on-tile {
-          background: darkslategray;
-          border-color: slategray;
-        }
-
-        /* Tile images should fill the tile while allowing overlays (arrows, pawns) on top */
-        .tile-img {
-          position: absolute;
-          inset: 0;
-          top: 10px;
-          left: 10px;
-          width: calc(100% - 20px);
-          height: calc(100% - 20px);
-          object-fit: cover;
-          z-index: 1;
-        }
-
-        .tile-type {
-          position: relative;
-          z-index: 2;
-        }
-
-        .guard-figure, .guard-target {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 2.2rem;
-          z-index: 10;
-          pointer-events: none;
-          user-select: none;
-        }
-
-        .guard-target {
-          color: #e53e3e;
-          text-shadow: 0 0 6px #fff, 0 0 2px #e53e3e;
-        }
-
-        .guard-figure {
-          color: #2b6cb0;
-          text-shadow: 0 0 6px #fff, 0 0 2px #2b6cb0;
-        }
-
-        .guard-path-bar {
-          position: absolute;
-          background: #e14297;
-          opacity: 0.85;
-          z-index: 8;
-          pointer-events: none;
-        }
-
-        .guard-path-dot {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 18px;
-          height: 18px;
-          background: #d32020;
-          border: 3px solid #e14297;
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          z-index: 11;
-          box-shadow: 0 0 6px #d32020, 0 0 6px #e14297;
-          pointer-events: none;
-        }
-
-        .bar-up {
-          top: 0;
-          left: 50%;
-          width: 8px;
-          height: 50%;
-          transform: translateX(-50%);
-        }
-
-        .bar-down {
-          bottom: 0;
-          left: 50%;
-          width: 8px;
-          height: 50%;
-          transform: translateX(-50%);
-        }
-
-        .bar-left {
-          left: 0;
-          top: 50%;
-          width: 50%;
-          height: 8px;
-          transform: translateY(-50%);
-        }
-
-        .bar-right {
-          right: 0;
-          top: 50%;
-          width: 50%;
-          height: 8px;
-          transform: translateY(-50%);
-        }
-
-        .game-layout {
-          display: flex;
-          flex-direction: row;
-          align-items: flex-start;
-          width: 100%;
-          height: 100%;
-        }
-
-        .game-area {
-          flex: 1 1 auto;
-          min-width: 0;
-        }
-
-        .side-panel-right {
-          flex: 0 0 220px;
-          margin: 1rem 1rem 1rem 1rem;
-          align-items: flex-start;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          height: 100%;
-          justify-content: center;
-        }
-
-        .side-panel-left {
-          flex: 0 0 220px;
-          margin: 1rem 1rem 1rem 1rem;
-          align-items: flex-start;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          height: 100%;
-          justify-content: center;
-        }
-
-        .ap-counter {
-          font-size: 1.1rem;
-          font-weight: bold;
-          color: #2d3748;
-          margin-bottom: 0.5rem;
-        }
-
-        .hp-icon {
-          width: 50px;
-          height: 50px;
-        }
-
-
+        @import './room-page.scss';
       </style>
 
     } @else {
@@ -913,6 +306,9 @@ export class RoomPageComponent {
   private roomService = inject(RoomService);
   private cdr = inject(ChangeDetectorRef);
   private seed = '';
+  private seednum = 0;
+  protected diceValues = [0, 0, 0, 0, 0, 0];
+  diceMap = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
   roomId = this.route.snapshot.paramMap.get('id')!;
 
@@ -947,6 +343,7 @@ export class RoomPageComponent {
 
   // cache for tile images: type -> resolved asset url or null if none found
   private tileImageCache: Record<string, string | null> = {};
+  private animatation: boolean = false;
 
   /**
    * Returns a cached asset URL for a tile type if already found.
@@ -1025,6 +422,12 @@ export class RoomPageComponent {
 
   async start(room: Room) {
     const game = generateGame(room.seed);
+
+    for (let i = 0; i < this.seed.length; i++) {
+      this.seednum = ((this.seednum << 5) - this.seednum) + this.seed.charCodeAt(i);
+      this.seednum |= 0;
+    }
+
     game.guardPositions[0].pos = game.guardPositions[0].moves[0]; // kezdőpozíció beállítása
     game.guardPositions[0].target = game.guardPositions[0].moves[1]; // célpozíció beállítása
     game.guardPositions[0].moves = game.guardPositions[0].moves.slice(2); // első két lépés már felhasználva
@@ -1222,21 +625,147 @@ export class RoomPageComponent {
     return targetIdx;
   }
 
+
+  async rollDice(k: number) {
+    this.animatation = true;
+    for (let i = 0; i < 10; i++) {
+      this.diceValues = [
+        ...Array.from({ length: k }, () => Math.floor(Math.random() * 6) + 1),
+        ...Array.from({ length: 6 - k }, () => 0)
+      ];
+      this.cdr.detectChanges();
+      await new Promise(res => setTimeout(res, 100));
+    }
+    this.animatation = false;
+    this.cdr.detectChanges();
+  }
+
+  triggeredMotions: Array<{fIdx: number, tIdx: number}> = [];
   private async moveToTile(room: Room, fIdx: number, tIdx: number) {
     const game: GameState = JSON.parse(JSON.stringify(room.game));
-    if (!await this.useActionPoint(game, 1)) {return;}
     const name = this.playerName ?? '';
-    game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
+    let sameFloor = game.playerPositions[name].floor === fIdx;
+
+    if (game.floors[fIdx].tiles[tIdx].type === 'SafetyLock') {
+      let occupied = false;
+      for (const player in game.playerPositions) {
+        if (game.playerPositions[player].floor === fIdx && game.playerPositions[player].tileIdx === tIdx) {
+          occupied = true;
+          break;
+        }
+      }
+        if (game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x === tIdx) {occupied = true;}
+
+
+      if (occupied) {
+        if (!await this.useActionPoint(game, 1)) {return;}
+      } else {
+        if (!await this.useActionPoint(game, 3)) {
+          if (!game.floors[fIdx].tiles[tIdx].revealed) {
+            if (!await this.useActionPoint(game, 1)) {return;}
+            game.floors[fIdx].tiles[tIdx].revealed = true;
+            await this.roomService.setGameState(this.roomId, game);
+            return;
+          }
+          return;
+        }
+      }
+
+    } else {
+      if (game.floors[fIdx].tiles[tIdx].type === 'Laser') {
+        if (!game.floors[fIdx].tiles[tIdx].revealed) {
+          if (!await this.useActionPoint(game, 1)) {return;}
+          this.triggerAlarm(game, "Laser", fIdx, tIdx);
+        } else {
+          if (game.currentAP >= 2) {
+
+            if(await this.askActionPoints()){
+              if (!await this.useActionPoint(game, 2)) {return;}
+            }else {
+
+              if (!await this.useActionPoint(game, 1)) {return;}
+              this.triggerAlarm(game, "Laser", fIdx, tIdx);
+            }
+          } else {
+            if (!await this.useActionPoint(game, 1)) {return;}
+            this.triggerAlarm(game, "Laser", fIdx, tIdx);
+          }
+        }
+      }else {
+          if (!await this.useActionPoint(game, 1)) {return;}
+      }
+    }
+
+    if(game.floors[fIdx].tiles[tIdx].type === 'Motion') {
+      this.triggeredMotions.push({fIdx: fIdx, tIdx: tIdx});
+    }
+
+    if (game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].type === 'Motion'){
+      if (this.triggeredMotions.some(motion => motion.fIdx === game.playerPositions[this.playerName].floor && motion.tIdx === game.playerPositions[this.playerName].tileIdx)){
+      this.triggerAlarm(game, 'Motion', game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx);
+    }}
+
+    if (game.floors[fIdx].tiles[tIdx].type === 'Walkway' && !game.floors[fIdx].tiles[tIdx].revealed && fIdx > 0) {
+      game.floors[fIdx].tiles[tIdx].revealed = true;
+      fIdx--;
+    }
+
+    if (game.floors[fIdx].tiles[tIdx].type === 'Keypad'){
+      for (let i = 0; i < game.keypads.length; i++) {
+        if(game.keypads[i].fIdx === fIdx && game.keypads[i].tIdx === tIdx){
+          if(!game.keypads[i].opened) {
+            await this.rollDice(game.keypads[i].tries + 1)
+            for (let j = 0; j < game.keypads[i].tries + 1; j++) {
+              if (this.diceValues[j] === 6) {
+                game.keypads[i].opened = true;
+                game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
+              }
+            }
+            game.keypads[i].tries++;
+          } else {
+            game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
+          }
+        }
+      }
+    }else {
+      game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
+    }
+
     game.floors[fIdx].tiles[tIdx].revealed = true; // Rálépés felfedi
 
     // Őrrel való találkozás ellenőrzése
     let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
-    if (guardIdx === tIdx) {
+    if (guardIdx === tIdx && sameFloor) {
       game.healths[name] = (game.healths[name] || 1) - 1;
     }
 
+    if(game.floors[fIdx].tiles[tIdx].type === 'Fingerprint')
+    this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
+
     await this.roomService.setGameState(this.roomId, game);
   }
+
+
+  showAPDialog = false;
+  private apDialogResolver: ((value: boolean) => void) | null = null;
+
+  askActionPoints(): Promise<boolean> {
+    this.showAPDialog = true;
+    this.animatation = true;
+    return new Promise<boolean>(resolve => {
+      this.apDialogResolver = resolve;
+    });
+  }
+
+  resolveAPDialog(value: boolean) {
+    this.showAPDialog = false;
+    this.animatation = false;
+    if (this.apDialogResolver) {
+      this.apDialogResolver(value);
+      this.apDialogResolver = null;
+    }
+  }
+
 
   /** Kilépés: törlés a szobából + navigálás */
   async leave(): Promise<void> {
@@ -1339,7 +868,7 @@ export class RoomPageComponent {
     return !!room.game?.guardPositions?.some((g, i) => {
       if (g.floor !== floorIdx) return false;
       const path = this.getGuardPath(room, floorIdx, i);
-      const maxStep = Math.min(g.speed, path.length - 1);
+      const maxStep = Math.min(g.speed + (room.game?.floors[floorIdx].alarms.length ?? 0), path.length - 1);
       return path.slice(1, maxStep + 1).includes(tIdx);
     });
   }
@@ -1372,6 +901,28 @@ export class RoomPageComponent {
     return true;
   }
 
+  private generateNewGuardTargets(guard: GameState['guardPositions'][0]) {
+    let guardtargets = [];
+    for (let i = 0; i < 16; i++) {
+      const x = i % 4;
+      const y = Math.floor(i / 4);
+
+      guardtargets.push({ x: x, y: y });
+    }
+
+    const random = () => {
+      const x = Math.sin(this.seednum++) * 10000;
+      return x - Math.floor(x);
+    };
+
+    const result = [...guardtargets];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    guard.moves = result;
+  }
+
 // Moves the guard on the given floor, step-by-step, with 1s delay per step
   private async moveGuardWithDelay(game: GameState, floorIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === floorIdx);
@@ -1380,41 +931,42 @@ export class RoomPageComponent {
     const guard = game.guardPositions[guardIdx];
     let path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
 
-    for (let i = 1; i <= guard.speed; i++) {
+    for (let i = 1; i <= guard.speed + game.floors[floorIdx].alarms.length; i++) {
       const nextIdx = path[1];
       path = path.splice(1);
       if (path.length === 1) {
-        guard.target = guard.moves[0];
+
+        if(game.floors[floorIdx].alarms.includes(nextIdx)){
+          game.floors[floorIdx].alarms = game.floors[floorIdx].alarms.filter(a => a !== nextIdx);
+        }
+
+        if (game.floors[floorIdx].alarms.length >0) {
+          this.checkClosestAlarm(game, guard, floorIdx, guardIdx);
+        }else if (guard.target.x == guard.moves[0].x && guard.target.y == guard.moves[0].y) {
+          if (guard.moves.length > 1) {
+          guard.target = guard.moves[1];
+          guard.moves[1] = guard.moves[0];}
+          else {
+            this.generateNewGuardTargets(guard);
+            if (guard.target.x == guard.moves[0].x && guard.target.y == guard.moves[0].y) {
+              guard.target = guard.moves[1];
+              guard.moves[1] = guard.moves[0];
+            }else {
+              guard.target = guard.moves[0];
+            }
+          }
+        } else {
+          guard.target = guard.moves[0];
+        }
+
         guard.moves = guard.moves.slice(1);
+
         if (guard.moves.length === 0) {
           guard.speed++; // növeljük a sebességet, ha elfogytak a lépések
-
-          let guardtargets = [];
-          for (let i = 0; i < 16; i++) {
-            const x = i % 4;
-            const y = Math.floor(i / 4);
-
-            guardtargets.push({ x: x, y: y });
-          }
-          let seedNum = 0;
-          for (let i = 0; i < this.seed.length; i++) {
-            seedNum = ((seedNum << 5) - seedNum) + this.seed.charCodeAt(i);
-            seedNum |= 0;
-          }
-
-          const random = () => {
-            const x = Math.sin(seedNum++) * 10000;
-            return x - Math.floor(x);
-          };
-
-          const result = [...guardtargets];
-          for (let i = result.length - 1; i > 0; i--) {
-            const j = Math.floor(random() * (i + 1));
-            [result[i], result[j]] = [result[j], result[i]];
-          }
-          guard.moves = result;
+          this.generateNewGuardTargets(guard);
         }
       }
+
       guard.pos = { x: nextIdx % 4, y: Math.floor(nextIdx / 4) };
 
       for (const player of game.playerPositions ? Object.keys(game.playerPositions) : []) {
@@ -1427,6 +979,24 @@ export class RoomPageComponent {
 
         if (game.playerPositions[player].floor !== floorIdx && game.playerPositions[player].tileIdx === nextIdx && game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Atrium') {
           game.healths[player] = (game.healths[player] || 1) - 1;}
+
+        if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby'){
+          if (this.isAdjacent(game.playerPositions[player].floor, game.playerPositions[player].tileIdx, floorIdx, nextIdx)) {
+
+              const x1 = game.playerPositions[player].tileIdx % 4;
+              const y1 = Math.floor(game.playerPositions[player].tileIdx / 4);
+              const x2 = nextIdx % 4;
+              const y2 = Math.floor(nextIdx / 4);
+              const tile1 = game.floors[floorIdx].tiles[game.playerPositions[player].tileIdx];
+              const tile2 = game.floors[floorIdx].tiles[nextIdx];
+
+              if (!(((x1 < x2) && (tile1.walls.right || tile2.walls.left)) || ((x1 > x2) && (tile1.walls.left || tile2.walls.right))
+                || ((y1 < y2) && (tile1.walls.bottom || tile2.walls.top)) || ((y1 > y2) && (tile1.walls.top || tile2.walls.bottom)))
+              ) {
+                game.healths[player] = (game.healths[player] || 1) - 1;
+            }
+          }
+        }
       }
 
       await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
@@ -1436,22 +1006,32 @@ export class RoomPageComponent {
   }
 
   protected isMyTurn(room: Room): boolean {
-    return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName;
+    return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName && !this.animatation;
   }
 
   async endTurn(room: Room) {
+    this.diceValues = [0,0,0,0,0,0];
     if (!room.game || !this.isMyTurn(room)) return;
     const game: GameState = JSON.parse(JSON.stringify(room.game));
 
     let nextplayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
 
-
     // Move guard on the floor where the previous player ended their turn
     const prevPlayerPos = game.playerPositions[game.playerOrder[game.currentPlayerIdx]];
+
+    if(game.floors[prevPlayerPos.floor].tiles[prevPlayerPos.tileIdx].type === 'Thermo'){
+      this.triggerAlarm(game, "Thermo", prevPlayerPos.floor, prevPlayerPos.tileIdx);
+    }
+
     if (prevPlayerPos) {
       game.currentPlayerIdx = -1;
       await this.moveGuardWithDelay(game, prevPlayerPos.floor);
     }
+
+    for (let i = 0; i < game.keypads.length; i++) {
+      game.keypads[i].tries = 0;
+    }
+    this.triggeredMotions = [];
 
     game.currentPlayerIdx = nextplayerIdx;
     game.currentAP = 4;
@@ -1462,4 +1042,132 @@ export class RoomPageComponent {
     await this.roomService.setGameState(this.roomId, game);
   }
 
+  async addToken(room: Room, roomType: string, fIdx: number = -1, tIdx: number = -1) {
+    if (!room.game || !this.isMyTurn(room)) return;
+    const game: GameState = JSON.parse(JSON.stringify(room.game));
+    if (roomType !== 'safe') {
+      if (await this.useActionPoint(game, 1)) {
+        if (roomType === 'fingerprint') {
+          game.hackFingerprint += 1;
+        } else if (roomType === 'motion') {
+          game.hackMotion += 1;
+        } else if (roomType === 'laser') {
+          game.hackLaser += 1;
+        }
+      }
+    }
+    else {
+      if (game.floors[fIdx].tiles[tIdx].tokens < 6 && !game.floors[fIdx].safeOpened) {
+        if (await this.useActionPoint(game, 2)) {
+          game.floors[fIdx].tiles[tIdx].tokens += 1;
+        }
+      }
+    }
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo', fIdx: number, tIdx: number) {
+    const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
+    const guard = game.guardPositions[guardIdx];
+
+    if (tIdx === guard.pos.y * 4 + guard.pos.x || game.floors[fIdx].alarms.includes(tIdx)) {
+      return; // Ha az őr már ott van, ne csináljon semmit
+    }
+
+    if (roomType === 'Fingerprint') {
+      if (game.hackFingerprint > 0){
+        game.hackFingerprint -= 1;
+      return}
+      else {
+        game.floors[fIdx].alarms.push(tIdx);
+      }
+    }
+    if (roomType === 'Motion') {
+      if (game.hackMotion > 0){
+        game.hackMotion -= 1;return}
+      else {
+        game.floors[fIdx].alarms.push(tIdx);
+      }
+    }
+    if (roomType === 'Laser') {
+      if (game.hackLaser > 0){
+        game.hackLaser -= 1;return}
+      else {
+        game.floors[fIdx].alarms.push(tIdx);
+      }
+    }
+    if (roomType === 'Camera' || roomType === 'Thermo') {
+      game.floors[fIdx].alarms.push(tIdx);
+    }
+
+    this.checkClosestAlarm(game, guard, fIdx, guardIdx);
+
+  }
+
+  checkClosestAlarm(game: GameState, guard: GameState['guardPositions'][0], fIdx: number, guardIdx: number) {
+    let closestAlarm = Infinity;
+    let shortestPath = Infinity
+    for (let i = 0; i < game.floors[fIdx].alarms.length; i++) {
+    guard.target.x = game.floors[fIdx].alarms[i] % 4;
+    guard.target.y = Math.floor(game.floors[fIdx].alarms[i] / 4);
+    let path = this.getGuardPath({ game } as Room, fIdx, guardIdx);
+    if (path.length < shortestPath){
+      shortestPath = path.length;
+      closestAlarm = game.floors[fIdx].alarms[i];
+    }
+  }
+
+  guard.target.x = closestAlarm % 4;
+  guard.target.y = Math.floor(closestAlarm / 4);
+}
+
+  protected isAlarmOnTile(room: Room, activeFloorIdx: number, tIdx: number) {
+    if (!room.game) return false;
+    return room.game.floors[activeFloorIdx].alarms.includes(tIdx);
+  }
+
+  protected KeypadOpened(room: Room, activeFloorIdx: number, tIdx: number) {
+    for (let i = 0; i < (room.game?.keypads.length ?? 0); i++) {
+      if (room.game?.keypads[i].fIdx === activeFloorIdx && room.game?.keypads[i].tIdx === tIdx) {
+        return room.game?.keypads[i].opened;
+      }
+    }
+    return false;
+  }
+
+  async crackSafe(room: Room, activeFloorIdx: number, tIdx: number) {
+    if(!room.game || room.game.floors[activeFloorIdx].tiles[tIdx].tokens === 0 || room.game.floors[activeFloorIdx].safeOpened) return;
+    if(!await this.useActionPoint(room.game, 1)) return;
+
+    await this.rollDice(room.game.floors[activeFloorIdx].tiles[tIdx].tokens);
+
+    const row = Math.floor(tIdx / 4)
+    const col = tIdx % 4;
+
+    const cracks: boolean[] = [];
+
+    for (let c = 0; c < 4; c++) {
+      if (row * 4 + c === tIdx) continue;
+      if (this.diceValues.includes(room.game.floors[activeFloorIdx].tiles[row * 4 + c].number) && room.game.floors[activeFloorIdx].tiles[row * 4 + c].revealed) {
+        room.game.floors[activeFloorIdx].tiles[row * 4 + c].cracked = true;
+        this.cdr.detectChanges();
+      }
+      cracks.push(room.game.floors[activeFloorIdx].tiles[row * 4 + c].cracked)
+    }
+
+    for (let r = 0; r < 4; r++) {
+      if (r * 4 + col === tIdx) continue;
+      if (this.diceValues.includes(room.game.floors[activeFloorIdx].tiles[r * 4 + col].number) && room.game.floors[activeFloorIdx].tiles[r * 4 + col].revealed) {
+        room.game.floors[activeFloorIdx].tiles[r * 4 + col].cracked = true;
+        this.cdr.detectChanges();
+      }
+      cracks.push(room.game.floors[activeFloorIdx].tiles[r * 4 + col].cracked)
+    }
+
+    if (!cracks.includes(false)) {
+      console.log('Safe cracked!');
+    }
+
+    await this.roomService.setGameState(this.roomId, room.game);
+  }
 }

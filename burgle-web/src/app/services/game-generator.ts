@@ -1,5 +1,5 @@
 
-import { GameState, Tile, TileType, Floor } from './room';
+import {GameState, Tile, TileType, Floor, keypadTile} from './room';
 
 const ALL_TILE_3_FlOOR: TileType[] = [
   'ServiceDuct', 'ServiceDuct', 'Laser', 'Laser', 'Laser', 'Thermo', 'Thermo', 'Thermo', 'Fingerprint', 'Fingerprint',
@@ -37,6 +37,21 @@ export function generateGame(seed: string): GameState {
     available_rooms = available_rooms.slice(14);
   }
 
+  let keypadTiles: keypadTile[] = [];
+
+  for (let k = 0; k < 3; k++) {
+    for (let j = 0; j < floors[k].tiles.length; j++) {
+      if (floors[k].tiles[j].type === 'Keypad') {
+        keypadTiles.push({
+          tries: 0,
+          opened: false,
+          fIdx: k,
+          tIdx: j
+        });
+      }
+    }
+  }
+
   let guardtargets = [];
   for (let i = 0; i < 16; i++) {
     const x = i % 4;
@@ -57,7 +72,11 @@ export function generateGame(seed: string): GameState {
     currentPlayerIdx: 0,
     currentAP: 4,
     startingPosition: null,
-    healths: {}
+    healths: {},
+    hackMotion: 0,
+    hackFingerprint: 0,
+    hackLaser: 0,
+    keypads: keypadTiles
   };
 }
 
@@ -92,7 +111,8 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
         left: x === 0
       },
       tokens: type === 'Toilet' ? 3 : 0,
-      number: Math.floor(random() * 6) + 1
+      number: Math.floor(random() * 6) + 1,
+      cracked: false
     });
   }
 
@@ -139,7 +159,7 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
     }
   }
 
-  return { tiles };
+  return { tiles: tiles, alarms: [], safeOpened: false };
 }
 
 function isEverythingAccessible(tiles: Tile[]): boolean {

@@ -1,27 +1,30 @@
 Cards:
-'Safe'
+'Safe' ✔ loot after cracking
 'Stairs' ✔
-'Atrium': May peed up and down ✔, seen from above and below
+'Atrium': May peed up and down ✔, seen from above and below ✔
 'Camera'
-'SafetyLock'
-'Fingerprint'
-'Lobby'
-'Keypad'
+'SafetyLock' ✔
+'Fingerprint' ✔
+'Lobby' ✔
+'Keypad' ✔
 'Laboratory'
-'Laser'
-'Toilet'
-'Motion'
+'Laser' ✔
+'Toilet' ✔
+'Motion' ✔
 'Scanner'
 'SecretDoor' ✔
 'ServiceDuct' ✔
-'Thermo'
-'Walkway' can move down✔, Fall down if step without reveal
-'ComputerLaser'
-'ComputerFingerprint'
-'ComputerMotion';
+'Thermo' ✔
+'Walkway' can move down✔, Fall down if step without reveal ✔
+'ComputerLaser'✔
+'ComputerFingerprint'✔
+'ComputerMotion';✔
 
 
 GUARD:
 Atrium up and down ✔
-lobby from neighboring rooms
+lobby from neighboring rooms ✔
 toilet ✔
+
+
+Profilon szekrény a lootal
