@@ -1,4 +1,4 @@
-import {Component, inject, HostListener, ChangeDetectorRef, ViewChild, ElementRef} from '@angular/core';
+import {Component, inject, HostListener, ChangeDetectorRef, ViewChild, ElementRef, AfterViewInit} from '@angular/core';
 import {AsyncPipe, NgOptimizedImage} from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import {RoomService, Room, GameState, getRoomDisplayName, Tile} from '../services/room';
@@ -6,6 +6,7 @@ import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
 import {generateGame, toolsList} from '../services/game-generator';
 import {tap, take, firstValueFrom} from 'rxjs';
+import {min} from '@angular/forms/signals';
 
 @Component({
   selector: 'app-room-page',
@@ -13,6 +14,8 @@ import {tap, take, firstValueFrom} from 'rxjs';
   imports: [AsyncPipe, NgOptimizedImage],
   template: `
     @if (room$ | async; as room) {
+      <div class="viewport">
+      <div class="app-root" #appRoot>
       <div class="header-bar">
         <div class="header-left">
           <div class="room-info">
@@ -50,6 +53,11 @@ import {tap, take, firstValueFrom} from 'rxjs';
         </div>
 
         <div class="header-actions">
+
+          <button class="btn btn-outline" (click)="toggleFullscreen()">
+            {{ isFullscreen ? 'Kilépés teljes képernyőből' : 'Teljes képernyő' }}
+          </button>
+
           <button class="btn btn-outline"
                   (click)="leave()"
                   [disabled]="room.phase !== 'lobby' && !isSpectator(room)"
@@ -75,30 +83,27 @@ import {tap, take, firstValueFrom} from 'rxjs';
         } @else if (room.phase === 'play') {
           <div class="game-layout">
             <div class="side-panel-left">
-
-              <div class="tools-section" #toolsSection (wheel)="onToolWheel($event, (room.game?.inventory?.[playerName]?.tool?.length ?? 0) + (room.game?.inventory?.[playerName]?.loot?.length ?? 0))">
-                <div class="tools-inner" #toolsInner>
-                  @for (tool of room.game?.inventory?.[playerName]?.tool; track $index) {
-                    @let imgUrl = getOrLoadTileImage('tool-' + tool);
-                    @if (imgUrl && imgUrl != '') {
-                    <img class="square-img"
-                         [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}">
-                    }@else {
-                      <span class="tile-type">{{tool}}</span>
-                    }
+              <div class="tools-inner" #toolsInner>
+                @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(this.lootToolIndex, 3); track $index) {
+                  @let imgUrl = getOrLoadTileImage('loot-' + loot);
+                  @if (imgUrl && imgUrl != '') {
+                    <img class="square-img" [ngSrc]="imgUrl" [style.--i]="(room.game?.inventory?.[playerName]?.tool?.length ?? 0) + $index" width="1" height="1" alt="{{ loot }}"/>
+                  } @else {
+                    <span class="tile-type">{{loot}}</span>
                   }
-                  @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(0, 3); track $index) {
-                    @let imgUrl = getOrLoadTileImage('loot-' + loot);
-                    @if (imgUrl && imgUrl != '') {
-                      <img class="square-img" [ngSrc]="imgUrl" [style.--i]="(room.game?.inventory?.[playerName]?.tool?.length ?? 0) + $index" width="1" height="1" alt="{{ loot }}"/>
-                    } @else {
-                      <span class="tile-type">{{loot}}</span>
-                    }
+                }
+                @for (tool of room.game?.inventory?.[playerName]?.tool?.slice(Math.max(0, this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)), 3 + this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)); track $index) {
+                  @let imgUrl = getOrLoadTileImage('tool-' + tool);
+                  @if (imgUrl && imgUrl != '') {
+                  <img class="square-img"
+                       [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}">
+                  }@else {
+                    <span class="tile-type">{{tool}}</span>
                   }
+                }
+                  <button class="scroll-btn scroll-up" (click)="this.lootToolIndex= Math.max(0, this.lootToolIndex-1)">▲</button>
+                  <button class="scroll-btn scroll-down" (click)="this.lootToolIndex= Math.min((room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3 ,this.lootToolIndex + 1)">▼</button>
                 </div>
-              </div>
-
-
             </div>
             <div class="game-area">
               @if (room.game) {
@@ -342,13 +347,15 @@ import {tap, take, firstValueFrom} from 'rxjs';
       <style>
         @import './room-page.scss';
       </style>
-
+      </div>
+      </div>
     } @else {
       <div style="padding: 20px;">Betöltés...</div>
     }
   `,
 })
-export class RoomPageComponent {
+
+export class RoomPageComponent implements AfterViewInit {
   protected getRoomDisplayName = getRoomDisplayName;
   private route = inject(ActivatedRoute);
   protected router = inject(Router);
@@ -358,6 +365,7 @@ export class RoomPageComponent {
   private seednum = 0;
   protected diceValues = [0, 0, 0, 0, 0, 0];
   diceMap = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  lootToolIndex = 0;
 
   roomId = this.route.snapshot.paramMap.get('id')!;
 
@@ -393,6 +401,71 @@ export class RoomPageComponent {
   // cache for tile images: type -> resolved asset url or null if none found
   private tileImageCache: Record<string, string | null> = {};
   private animatation: boolean = false;
+
+  @ViewChild('appRoot') appRoot?: ElementRef<HTMLElement>;
+  resizeApp() {
+    if (!this.appRoot) return;
+    const app = this.appRoot.nativeElement;
+
+    const appWidth = 1900;
+    const appHeight = 900;
+
+    const scaleX = window.innerWidth / appWidth;
+    const scaleY = window.innerHeight / appHeight;
+
+    const scale = Math.min(scaleX, scaleY, 1); // soha ne nőjön desktopon
+
+    app.style.transform = `scale(${scale})`;
+  }
+
+
+  isFullscreen = false;
+
+  // Fullscreen állapot figyelése (külön vendor eventek)
+  @HostListener('document:fullscreenchange', [])
+  @HostListener('document:webkitfullscreenchange', [])
+  onFsChange() {
+    this.isFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+  }
+
+  async toggleFullscreen(target?: HTMLElement) {
+    const doc: any = document;
+    const elem: any = target ?? document.documentElement;
+
+    // már fullscreen?
+    const isFs = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+    try {
+      if (!isFs) {
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen(); // iOS/older WebKit (korlátozott)
+        }
+      } else {
+        if (doc.exitFullscreen) {
+          await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          doc.webkitExitFullscreen();
+        }
+      }
+      this.resizeApp()
+    } catch (e) {
+      console.warn('Fullscreen hiba/korlátozás:', e);
+    }
+  }
+
+
+@ViewChild('appRoot')
+  set appRootSetter(el: ElementRef<HTMLElement> | undefined) {
+    if (!el) return;
+    this.resizeApp();
+  }
+
+
+    ngAfterViewInit() {
+      window.addEventListener('resize', () => this.resizeApp());
+  }
+
 
   /**
    * Returns a cached asset URL for a tile type if already found.
@@ -798,8 +871,9 @@ export class RoomPageComponent {
     if(game.floors[fIdx].tiles[tIdx].type === 'Camera')
       this.checkCameras(game,false, fIdx, tIdx);
 
-    if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory') {
+    if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].cracked) {
       this.drawTool(game,this.playerName)
+      game.floors[fIdx].tiles[tIdx].cracked = true;
     }
 
     await this.roomService.setGameState(this.roomId, game);
@@ -1347,28 +1421,6 @@ export class RoomPageComponent {
 
   }
 
-  @ViewChild('toolsInner') toolsInner!: ElementRef;
-  @ViewChild('toolsSection') toolsSection!: ElementRef;
-  private toolScroll = 0;
-  onToolWheel(e: WheelEvent, toolLen: number) {
-    e.preventDefault();
-
-    const tools = this.toolsInner.nativeElement
-      .querySelectorAll('.square-img');
-
-    const overlapPercent = 0.15; // 30%
-    const containerHeight = this.toolsSection.nativeElement.clientHeight;
-    const toolHeight = tools[0].clientHeight;
-
-    const virtualHeight = toolHeight + (toolLen - 1) * toolHeight * (1-overlapPercent);
-    let maxScroll = Math.max(0, virtualHeight - containerHeight);
-
-    console.log(maxScroll);
-
-    this.toolScroll += e.deltaY * 0.8;
-    this.toolScroll = Math.max(0, Math.min(this.toolScroll, maxScroll));
-
-    this.toolsInner.nativeElement.style.transform =
-      `translateY(${-this.toolScroll}px)`;
-  }
+  protected readonly min = min;
+  protected readonly Math = Math;
 }

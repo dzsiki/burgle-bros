@@ -15,7 +15,7 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "dist/burgle-web/browser/index.html"
+        "destination": "/index.html"
       }
     ]
   },

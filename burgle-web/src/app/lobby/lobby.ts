@@ -106,7 +106,7 @@ import { Router } from '@angular/router';
     <style>
       :host {
         display: block;
-        min-height: 100vh;
+        height: 100vh;
         min-height: 100dvh;
         background-color: #f7fafc;
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -125,6 +125,10 @@ import { Router } from '@angular/router';
         justify-content: space-between;
         align-items: center;
         margin-bottom: 3rem;
+      }
+
+      .lobby-content {
+        overflow:auto;
       }
 
       .brand {
