@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import {RoomService, Room, GameState, getRoomDisplayName, Tile} from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
-import {generateGame, toolsList} from '../services/game-generator';
+import {generateGame, lootList, toolsList} from '../services/game-generator';
 import {tap, take, firstValueFrom} from 'rxjs';
 import {min} from '@angular/forms/signals';
 
@@ -871,6 +871,12 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.floors[fIdx].tiles[tIdx].type === 'Camera')
       this.checkCameras(game,false, fIdx, tIdx);
 
+    if(game.floors[fIdx].tiles[tIdx].type === 'Scanner'){
+      if(game.inventory[this.playerName].tool.length > 0 || game.inventory[this.playerName].loot.length > 0){
+        this.triggerAlarm(game, 'Scanner', fIdx, tIdx);
+      }
+    }
+
     if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].cracked) {
       this.drawTool(game,this.playerName)
       game.floors[fIdx].tiles[tIdx].cracked = true;
@@ -1208,7 +1214,7 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
-  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo', fIdx: number, tIdx: number) {
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner', fIdx: number, tIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
     const guard = game.guardPositions[guardIdx];
 
@@ -1238,7 +1244,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Camera' || roomType === 'Thermo') {
+    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner') {
       game.floors[fIdx].alarms.push(tIdx);
     }
 
@@ -1308,7 +1314,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (!cracks.includes(false)) {
       room.game.floors[activeFloorIdx].safeOpened = true;
-      console.log('Safe cracked!');
+      this.drawLoot(room.game, this.playerName)
     }
 
     await this.roomService.setGameState(this.roomId, room.game);
@@ -1420,7 +1426,16 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
   }
+  drawLoot(game: GameState, player: string){
+    if (!game) return;
 
-  protected readonly min = min;
+    game.inventory[player].loot.push(game.loots[0])
+    game.loots = game.loots.splice(1);
+
+    if(game.loots.length === 0){
+      game.loots = this.shuffle([...lootList])
+    }
+
+  }
   protected readonly Math = Math;
 }
