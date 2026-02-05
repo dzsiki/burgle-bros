@@ -471,6 +471,24 @@ html, body {
   position: absolute;
   bottom: 15px;
   left: 15px;
+  background: seagreen;
+  color: black;
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 75%;
+  font-weight: bold;
+  z-index: 4;
+  opacity: 1;
+  border: 1px solid white;
+}
+.stealthtokennumber {
+  position: absolute;
+  bottom: 15px;
+  left: 50px;
   background: dodgerblue;
   color: black;
   width: 25px;
@@ -988,4 +1006,235 @@ html, body {
   transform: scale(1.1);
   z-index: 999;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+dialog {
+  border: none;
+  padding: 0;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+dialog form {
+  margin: 0;
+}
+
+.dialog-body {
+  background: #ffffff;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+  max-width: 300px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;     /* vízszintesen középre */
+  gap: 0.75rem;            /* térköz gombok között */
+  text-align: center;
+}
+
+.overlay{
+  position: fixed;
+  inset: 0;
+
+  /* színesebb, de még mindig sötét és olvasható */
+  background:
+    radial-gradient(900px 600px at 15% 20%, rgba(124, 92, 255, 0.22), transparent 55%),
+    radial-gradient(800px 520px at 85% 70%, rgba(56, 189, 248, 0.18), transparent 60%),
+    rgba(0,0,0,.55);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+  z-index: 9999;
+
+  /* kis “glass” hatás */
+  backdrop-filter: blur(6px);
+}
+
+.modal{
+  /* kártya + enyhe színátmenet */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)),
+    rgba(12, 18, 40, 0.85);
+
+  color: #fff;
+  padding: 18px;
+  border-radius: 16px;
+
+  width: min(900px, 95vw);
+  max-height: min(82vh, 860px);
+  overflow: auto;
+
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
+
+  /* középre rendezés a modalban is */
+  text-align: center;
+}
+
+.blueprintgrid{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  aspect-ratio: auto;
+
+  gap: 10px;
+  margin-top: 14px;
+
+  /* a gombok szépen középre üljenek a cellákban */
+  justify-items: center;
+  align-items: center;
+}
+
+.cell{
+  height: 70px;
+  width: 100%;
+  border-radius: 14px;
+
+  /* “kártya” hatás */
+  border: 1px solid rgba(255,255,255,0.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05)),
+    rgba(0,0,0,0.18);
+
+  color: rgba(255,255,255,0.92);
+  font-weight: 800;
+  letter-spacing: 0.2px;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+  transition: transform .12s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.cell:hover{
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.40);
+  background:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(255,255,255,0.05)),
+    rgba(0,0,0,0.18);
+  cursor: pointer;
+}
+
+.cell:active{
+  transform: translateY(0);
+}
+
+.cell.revealed{
+  outline: 2px solid rgba(34, 197, 94, 0.75);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18), 0 12px 24px rgba(0,0,0,0.30);
+}
+
+.floorTabs button{
+  /* középre rendezett, nagyobb gombok */
+  margin-right: 8px;
+
+  padding: 12px 18px;
+  font-size: 16px;
+  font-weight: 800;
+
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.18);
+  color: rgba(255,255,255,0.92);
+
+  box-shadow: 0 10px 20px rgba(0,0,0,0.28);
+  transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.floorTabs button:hover{
+  transform: translateY(-1px);
+  background: rgba(124, 92, 255, 0.18);
+  border-color: rgba(124, 92, 255, 0.45);
+  cursor: pointer;
+}
+
+.floorTabs button:active{
+  transform: translateY(0);
+}
+
+.activeblueprintfloorbtn {
+  background: rgba(124, 92, 255, 0.8);
+}
+
+.crystalNumbers{
+  width: min(720px, 92vw);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  text-align: center;
+  margin: 10px auto 6px;
+}
+
+.crystalNum{
+  font-weight: 900;
+  font-size: 18px;
+  color: rgba(255,255,255,0.9);
+}
+
+.crystalRow{
+  width: min(720px, 92vw);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  justify-items: center;
+  align-items: start;
+  margin-top: 6px;
+  margin-left: auto;
+  margin-right: auto;
+
+
+  /* mobil DnD simább */
+  touch-action: none;
+}
+
+.crystalCard{
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.18);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+  padding: 10px;
+
+  /* húzáskor ne jelölje ki */
+  user-select: none;
+}
+
+.crystalImgWrap{
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.06);
+  display: grid;
+  place-items: center;
+}
+
+.crystalImgWrap img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.crystalFallback{
+  padding: 10px;
+  text-align: center;
+  font-weight: 800;
+  color: rgba(255,255,255,0.85);
+}
+
+.crystalActions{
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.crystalActions button{
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 900;
 }

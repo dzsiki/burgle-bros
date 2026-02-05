@@ -74,9 +74,9 @@ export function generateGame(seed: string): GameState {
   return {
     floors,
     guardPositions: [
-      { floor: 0, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 2, moves: shuffle([...guardtargets], random)},
-      { floor: 1, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 3, moves: shuffle([...guardtargets], random)},
-      { floor: 2, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 4, moves: shuffle([...guardtargets], random)},
+      { floor: 0, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 2, moves: shuffle([...guardtargets], random), donut: false},
+      { floor: 1, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 3, moves: shuffle([...guardtargets], random), donut: false},
+      { floor: 2, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 4, moves: shuffle([...guardtargets], random), donut: false},
     ],
     playerPositions: {},
     playerOrder: [],
@@ -91,7 +91,8 @@ export function generateGame(seed: string): GameState {
     tools: shuffle([...toolsList], random),
     loots: shuffle([...lootList], random),
     events: shuffle([...eventList], random),
-    inventory: {}
+    inventory: {},
+    emp: ""
   };
 }
 
@@ -125,9 +126,12 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
         bottom: y === 3,
         left: x === 0
       },
-      tokens: type === 'Toilet' ? 3 : 0,
+      tokens: 0,
       number: Math.floor(random() * 6) + 1,
-      cracked: false
+      cracked: false,
+      stealthtoken: type === 'Toilet' ? 3 : 0,
+      thermalStairsUp: false,
+      thermalStairsDown: false,
     });
   }
 

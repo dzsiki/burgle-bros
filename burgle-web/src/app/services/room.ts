@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 export type TileType =
   | 'Safe' | 'Stairs' | 'Atrium' | 'Camera' | 'SafetyLock' | 'Fingerprint' | 'Lobby' | 'Keypad' | 'Laboratory' |
   'Laser' | 'Toilet' | 'Motion' | 'Scanner' | 'SecretDoor' | 'ServiceDuct' | 'Thermo' | 'Walkway' | 'ComputerLaser' |
-  'ComputerFingerprint' | 'ComputerMotion';
+  'ComputerFingerprint' | 'ComputerMotion' | 'Disabled';
 
 export interface Tile {
   type: TileType;
@@ -24,6 +24,9 @@ export interface Tile {
   tokens: number; // pl. alarm, hack, etc.
   number: number; // 1-6
   cracked: boolean;
+  stealthtoken: number;
+  thermalStairsUp: boolean;
+  thermalStairsDown: boolean;
 }
 
 export interface keypadTile {
@@ -41,7 +44,7 @@ export interface Floor {
 
 export interface GameState {
   floors: Floor[];
-  guardPositions: { floor: number; pos: { x: number; y: number }; target: { x: number; y: number }; speed: number, moves: { x: number; y: number }[] }[];
+  guardPositions: { floor: number; pos: { x: number; y: number }; target: { x: number; y: number }; speed: number, moves: { x: number; y: number }[]; donut: boolean }[];
   playerPositions: { [playerName: string]: { floor: number; tileIdx: number } };
   playerOrder: string[]; // ordered list of player names
   currentPlayerIdx: number; // whose turn
@@ -56,6 +59,7 @@ export interface GameState {
   events: string[];
   loots: string[];
   inventory: { [playerName: string]: { loot: string[], tool: string[]} };
+  emp: string
 }
 
 export type Room = {

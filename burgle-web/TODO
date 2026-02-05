@@ -1,3 +1,7 @@
+Lobby nem működik ha én lépek bele ✔
+Atrium se ✔
+
+
 Cards:
 'Safe' ✔ loot after cracking ✔
 'Stairs' ✔
@@ -8,7 +12,7 @@ Cards:
 'Lobby' ✔
 'Keypad' ✔
 'Laboratory' ✔
-'Laser' ✔ ha őr van ne legyen aalarm
+'Laser' ✔ ha őr van ne legyen aalarm ✔
 'Toilet' ✔
 'Motion' ✔
 'Scanner' ✔
@@ -27,19 +31,19 @@ lobby from neighboring rooms ✔
 toilet ✔
 
 TOOLS:
-EMP: Remove all alarm, cant trigger until players next turn
-makeup kit: give 1 HP back on current tile
-Crowbar: disable adjustent tile
-smoke bomb: 3 stealth token to current tile
-virus: 3 token to any computer
-blueprint: reveal any tile
-crystal ball: check next 3 event, may shuffle
-invisible suit: ignore guard sight for 1 turn(camera), +1 action
-therlmal bomb: make stairs up or down, trigger alarm
-dynamite: remove wall, trigger alarm
-stetoscope: crack a number for safe
-rollerskate: +2 action
-donut: disable guard for 1 turn
+EMP: Remove all alarm, cant trigger until players next turn ✔
+makeup kit: give 1 HP back on current tile  ✔
+Crowbar: disable adjustent tile ✔
+smoke bomb: 3 stealth token to current tile ✔
+virus: 3 token to any computer ✔
+blueprint: reveal any tile    ✔
+crystal ball: check next 3 event, may shuffle ✔
+invisible suit: ignore guard sight for 1 turn(camera), +1 action ✔
+therlmal bomb: make stairs up or down, trigger alarm ✔
+dynamite: remove wall, trigger alarm ✔
+stetoscope: crack a number for safe ✔
+rollerskate: +2 action ✔
+donut: disable guard for 1 turn ✔
 
 
 LOOT:

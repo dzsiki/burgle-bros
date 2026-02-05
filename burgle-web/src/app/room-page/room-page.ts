@@ -4,14 +4,14 @@ import { ActivatedRoute } from '@angular/router';
 import {RoomService, Room, GameState, getRoomDisplayName, Tile} from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
-import {generateGame, lootList, toolsList} from '../services/game-generator';
+import {eventList, generateGame, lootList, toolsList} from '../services/game-generator';
 import {tap, take, firstValueFrom} from 'rxjs';
-import {min} from '@angular/forms/signals';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 @Component({
   selector: 'app-room-page',
   standalone: true,
-  imports: [AsyncPipe, NgOptimizedImage],
+  imports: [AsyncPipe, NgOptimizedImage, DragDropModule],
   template: `
     @if (room$ | async; as room) {
       <div class="viewport">
@@ -96,7 +96,7 @@ import {min} from '@angular/forms/signals';
                   @let imgUrl = getOrLoadTileImage('tool-' + tool);
                   @if (imgUrl && imgUrl != '') {
                   <img class="square-img"
-                       [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}">
+                       [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}" (click)="toolClick(room, tool)">
                   }@else {
                     <span class="tile-type">{{tool}}</span>
                   }
@@ -156,11 +156,14 @@ import {min} from '@angular/forms/signals';
                             </div>
                           }
 
-                          @if (activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs' && tile.revealed) {
+                          @if (((activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs') || tile.thermalStairsDown || tile.type === 'Walkway') && tile.revealed) {
                             <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
                           }
-                          @if (tile.type === 'Toilet' && tile.revealed) {
-                            <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}</div>
+                          @if (((activeFloorIdx < 3 && room.game.floors[activeFloorIdx].tiles[tIdx].type === 'Stairs') || tile.thermalStairsUp) && tile.revealed) {
+                            <div class="down-exit-mark" title="Lejárat az alsó szintről">▲</div>
+                          }
+                          @if (tile.revealed && tile.stealthtoken > 0) {
+                            <div class="stealthtokennumber" title="Stealthtoken mennyiség">{{ tile.stealthtoken }}</div>
                           }
                           @if (tile.type === 'ComputerFingerprint' && tile.revealed) {
                             <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackFingerprint }}
@@ -282,6 +285,8 @@ import {min} from '@angular/forms/signals';
                 <div>Motion hacks:  {{ room.game?.hackMotion }}</div>
                 <div>Laser hacks:   {{ room.game?.hackLaser }}</div>
                 <div>Fingerprint hacks: {{ room.game?.hackFingerprint }}</div>
+                <div>Guard speed: {{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</div>
+                <div>{{ room.game?.emp === "" ? "" : "EMP aktív! Nincs alarm!" }}</div>
 
 
                 <div class="dice-container panel-dice">
@@ -342,9 +347,96 @@ import {min} from '@angular/forms/signals';
           </div>
         </div>
       }
+        <dialog id="choiceDialog">
+          <form method="dialog">
+            <div class="dialog-body" >
+              <p class="ap-dialog">Mit szeretnél csinálni?</p>
+
+              <button id="choice-1" class="btn btn-success" value="1">1</button>
+              <button id="choice-2" class="btn btn-success" value="2">2</button>
+              <button id="choice-3" class="btn btn-success" value="3">3</button>
+              <button id="choice-4" class="btn btn-success" value="4" hidden>4</button>
+              <button id="choice-cancel" class="btn btn-danger" value="Cancel">Mégse</button>
+            </div>
+          </form>
+        </dialog>
+
+        @if (showBlueprintDialog) {
+          <div class="overlay">
+            <div class="modal">
+              <h4>Blueprint – válassz egy mezőt a felfedéshez</h4>
+              <p>(Kötelező választani: amíg nem választasz, semmi mást nem lehet csinálni.)</p>
+
+              <div class="floorTabs">
+                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0">1. szint</button>
+                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1">2. szint</button>
+                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3. szint</button>
+              </div>
+
+              @let floor = room.game?.floors?.[blueprintFloorIdx];
+              <div class="blueprintgrid">
+                @for (tile of floor?.tiles; track $index; let tIdx = $index) {
+                  <button
+                    class="cell"
+                    (click)="resolveBlueprintTarget(blueprintFloorIdx, tIdx, tile.revealed)"
+                    [class.revealed]="tile.revealed"
+                  >
+                    @if (tile.revealed) {
+                      {{ tile.type }}
+                    } @else {
+                      ?
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (showCrystalDialog) {
+        <div class="overlay">
+          <div class="modal">
+            <h4>Crystal – események sorrendje</h4>
+            <p>Húzd és ejtsd a kártyákat a kívánt sorrendbe (mobilon is).</p>
+
+            <!-- számozás felül -->
+            <div class="crystalNumbers">
+              @for (i of [1,2,3]; track $index) {
+        <div class="crystalNum">{{ i }}.</div>
+        }
+        </div>
+
+        <!-- kártyák sorban, vízszintes drag&drop -->
+        <div class="crystalRow"
+             cdkDropList
+             [cdkDropListData]="crystalCards"
+             cdkDropListOrientation="horizontal"
+             (cdkDropListDropped)="dropCrystal($event)">
+
+          @for (c of crystalCards; track $index) {
+        <div class="crystalCard" cdkDrag>
+          <div class="crystalImgWrap">
+            @let imgUrl = getOrLoadTileImage('event-' + c);
+            @if (imgUrl && imgUrl != '') {
+              <img [ngSrc]="imgUrl" width="1" height="1" alt="{{c}}" />
+              } @else {
+                <!-- fallback, ha még nincs asset -->
+              <div class="crystalFallback">{{ c }}</div>
+              }
+                </div>
+              </div>
+                }
+              </div>
+
+              <div class="crystalActions">
+                <button (click)="confirmCrystalDialog()">Mentés</button>
+              </div>
+              </div>
+              </div>
+            }
 
 
-      <style>
+            <style>
         @import './room-page.scss';
       </style>
       </div>
@@ -604,10 +696,10 @@ export class RoomPageComponent implements AfterViewInit {
     if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
 
     if (dir === 'floorUp') {
-      return fIdx < 2 && room.game.floors[fIdx].tiles[tIdx].type === 'Stairs';
+      return fIdx < 2 && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp);
     }
     if (dir === 'floorDown') {
-      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway');
+      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway' || room.game.floors[fIdx].tiles[tIdx].thermalStairsDown);
     }
 
     let targetIdx = this.calcTargetIdx(tIdx, dir);
@@ -642,11 +734,11 @@ export class RoomPageComponent implements AfterViewInit {
     if (tIdx === myPos.tileIdx) {
       // Felmenetel
       if (fIdx === myPos.floor + 1) {
-        return room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed);
+        return room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsUp;
       }
       // Lemenetel
       if (fIdx === myPos.floor - 1) {
-        return room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed);
+        return room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsDown;
       }
     }
 
@@ -754,6 +846,7 @@ export class RoomPageComponent implements AfterViewInit {
 
   async rollDice(k: number) {
     this.animatation = true;
+    k = Math.min(6, k)
     for (let i = 0; i < 10; i++) {
       this.diceValues = [
         ...Array.from({ length: k }, () => Math.floor(Math.random() * 6) + 1),
@@ -803,7 +896,8 @@ export class RoomPageComponent implements AfterViewInit {
           if (!await this.useActionPoint(game, 1)) {return;}
           this.triggerAlarm(game, "Laser", fIdx, tIdx);
         } else {
-          if (game.currentAP >= 2) {
+          const guard = game.guardPositions[fIdx];
+          if (game.currentAP >= 2 && !(tIdx === guard.pos.y * 4 + guard.pos.x || game.floors[fIdx].alarms.includes(tIdx))) {
 
             if(await this.askActionPoints()){
               if (!await this.useActionPoint(game, 2)) {return;}
@@ -861,14 +955,37 @@ export class RoomPageComponent implements AfterViewInit {
 
     // Őrrel való találkozás ellenőrzése
     let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
-    if (guardIdx === tIdx && sameFloor) {
-      game.healths[name] = (game.healths[name] || 1) - 1;
+    if (guardIdx === tIdx && sameFloor && !this.isInvisible) {
+      if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
+        game.floors[fIdx].tiles[tIdx].stealthtoken --;
+      }else {
+        game.healths[name] = (game.healths[name] || 1) - 1;}
+    }
+
+    if (this.isAdjacent(fIdx, guardIdx, fIdx, tIdx) && game.floors[fIdx].tiles[tIdx].type === 'Lobby' && !this.isInvisible){
+      if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
+        game.floors[fIdx].tiles[tIdx].stealthtoken --;
+      }else {
+        game.healths[name] = (game.healths[name] || 1) - 1;}
+    }
+
+    let g1Idx,g2Idx = undefined
+    if (fIdx > 0)
+      g1Idx = game.guardPositions[fIdx - 1].pos.y * 4 + game.guardPositions[fIdx - 1].pos.x;
+    if (fIdx < 2)
+      g2Idx = game.guardPositions[fIdx + 1].pos.y * 4 + game.guardPositions[fIdx + 1].pos.x;
+
+    if ((tIdx === g1Idx || tIdx === g2Idx) && game.floors[fIdx].tiles[tIdx].type === 'Atrium' && !this.isInvisible) {
+      if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
+        game.floors[fIdx].tiles[tIdx].stealthtoken --;
+      }else {
+        game.healths[name] = (game.healths[name] || 1) - 1;}
     }
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Fingerprint')
       this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
 
-    if(game.floors[fIdx].tiles[tIdx].type === 'Camera')
+    if(game.floors[fIdx].tiles[tIdx].type === 'Camera' && !this.isInvisible)
       this.checkCameras(game,false, fIdx, tIdx);
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Scanner'){
@@ -878,7 +995,7 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].cracked) {
-      this.drawTool(game,this.playerName)
+      await this.drawTool(game,this.playerName)
       game.floors[fIdx].tiles[tIdx].cracked = true;
     }
 
@@ -1073,9 +1190,17 @@ export class RoomPageComponent implements AfterViewInit {
     if (guardIdx === -1) return;
 
     const guard = game.guardPositions[guardIdx];
+
+    if ( guard.donut ) {
+      guard.donut = false
+      await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
+      return
+    }
+
     let path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
 
-    for (let i = 1; i <= guard.speed + game.floors[floorIdx].alarms.length; i++) {
+    const gspeed = guard.speed + game.floors[floorIdx].alarms.length
+    for (let i = 1; i <= gspeed; i++) {
       const nextIdx = path[1];
       path = path.splice(1);
       if (path.length === 1) {
@@ -1119,14 +1244,18 @@ export class RoomPageComponent implements AfterViewInit {
 
       for (const player of game.playerPositions ? Object.keys(game.playerPositions) : []) {
         if (game.playerPositions[player].floor === floorIdx && game.playerPositions[player].tileIdx === nextIdx) {
-          if (game.floors[floorIdx].tiles[nextIdx].type === 'Toilet' && game.floors[floorIdx].tiles[nextIdx].tokens>0) {
-            game.floors[floorIdx].tiles[nextIdx].tokens --;
+          if (game.floors[floorIdx].tiles[nextIdx].stealthtoken>0) {
+            game.floors[floorIdx].tiles[nextIdx].stealthtoken --;
           }else {
             game.healths[player] = (game.healths[player] || 1) - 1;}
         }
 
-        if (game.playerPositions[player].floor !== floorIdx && game.playerPositions[player].tileIdx === nextIdx && game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Atrium') {
-          game.healths[player] = (game.healths[player] || 1) - 1;}
+        if ((game.playerPositions[player].floor === floorIdx - 1 || game.playerPositions[player].floor === floorIdx + 1) && game.playerPositions[player].tileIdx === nextIdx && game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Atrium') {
+          if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
+            game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
+          }else {
+            game.healths[player] = (game.healths[player] || 1) - 1;}
+        }
 
         if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby'){
           if (this.isAdjacent(game.playerPositions[player].floor, game.playerPositions[player].tileIdx, floorIdx, nextIdx)) {
@@ -1141,7 +1270,10 @@ export class RoomPageComponent implements AfterViewInit {
               if (!(((x1 < x2) && (tile1.walls.right || tile2.walls.left)) || ((x1 > x2) && (tile1.walls.left || tile2.walls.right))
                 || ((y1 < y2) && (tile1.walls.bottom || tile2.walls.top)) || ((y1 > y2) && (tile1.walls.top || tile2.walls.bottom)))
               ) {
-                game.healths[player] = (game.healths[player] || 1) - 1;
+                if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
+                  game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
+                }else {
+                  game.healths[player] = (game.healths[player] || 1) - 1;}
             }
           }
         }
@@ -1161,6 +1293,8 @@ export class RoomPageComponent implements AfterViewInit {
     this.diceValues = [0,0,0,0,0,0];
     if (!room.game || !this.isMyTurn(room)) return;
     const game: GameState = JSON.parse(JSON.stringify(room.game));
+
+    this.isInvisible = false
 
     let nextplayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
 
@@ -1184,6 +1318,10 @@ export class RoomPageComponent implements AfterViewInit {
     game.currentPlayerIdx = nextplayerIdx;
     game.currentAP = 4;
 
+    if (game.emp === game.playerOrder[game.currentPlayerIdx]){
+      game.emp = ""
+    }
+
     if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
       game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
     }
@@ -1194,15 +1332,18 @@ export class RoomPageComponent implements AfterViewInit {
     if (!room.game || !this.isMyTurn(room)) return;
     const game: GameState = JSON.parse(JSON.stringify(room.game));
     if (roomType !== 'safe') {
-      if (await this.useActionPoint(game, 1)) {
-        if (roomType === 'fingerprint') {
+
+        if (roomType === 'fingerprint' && game.hackFingerprint < 6) {
+          if (await this.useActionPoint(game, 1))
           game.hackFingerprint += 1;
-        } else if (roomType === 'motion') {
+        } else if (roomType === 'motion' && game.hackMotion < 6) {
+          if (await this.useActionPoint(game, 1))
           game.hackMotion += 1;
-        } else if (roomType === 'laser') {
+        } else if (roomType === 'laser' && game.hackLaser < 6) {
+          if (await this.useActionPoint(game, 1))
           game.hackLaser += 1;
         }
-      }
+
     }
     else {
       if (game.floors[fIdx].tiles[tIdx].tokens < 6 && !game.floors[fIdx].safeOpened) {
@@ -1214,11 +1355,11 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
-  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner', fIdx: number, tIdx: number) {
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite', fIdx: number, tIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
     const guard = game.guardPositions[guardIdx];
 
-    if (tIdx === guard.pos.y * 4 + guard.pos.x || game.floors[fIdx].alarms.includes(tIdx)) {
+    if (tIdx === guard.pos.y * 4 + guard.pos.x || game.floors[fIdx].alarms.includes(tIdx) || game.emp !== "") {
       return; // Ha az őr már ott van, ne csináljon semmit
     }
 
@@ -1244,7 +1385,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner') {
+    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite") {
       game.floors[fIdx].alarms.push(tIdx);
     }
 
@@ -1283,11 +1424,15 @@ export class RoomPageComponent implements AfterViewInit {
     return false;
   }
 
-  async crackSafe(room: Room, activeFloorIdx: number, tIdx: number) {
-    if(!room.game || room.game.floors[activeFloorIdx].tiles[tIdx].tokens === 0 || room.game.floors[activeFloorIdx].safeOpened) return;
-    if(!await this.useActionPoint(room.game, 1)) return;
+  async crackSafe(room: Room, activeFloorIdx: number, tIdx: number, fixDices: number[] = []) {
+    if(!room.game || (room.game.floors[activeFloorIdx].tiles[tIdx].tokens === 0 && fixDices.length === 0 ) || room.game.floors[activeFloorIdx].safeOpened) return;
+    if (fixDices.length === 0)
+      if(!await this.useActionPoint(room.game, 1)) return;
 
-    await this.rollDice(room.game.floors[activeFloorIdx].tiles[tIdx].tokens);
+    if(fixDices.length ===   0)
+      await this.rollDice(room.game.floors[activeFloorIdx].tiles[tIdx].tokens);
+    else
+      this.diceValues = fixDices
 
     const row = Math.floor(tIdx / 4)
     const col = tIdx % 4;
@@ -1314,7 +1459,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (!cracks.includes(false)) {
       room.game.floors[activeFloorIdx].safeOpened = true;
-      this.drawLoot(room.game, this.playerName)
+      await this.drawLoot(room.game, this.playerName)
     }
 
     await this.roomService.setGameState(this.roomId, room.game);
@@ -1415,7 +1560,7 @@ export class RoomPageComponent implements AfterViewInit {
     return `rgb(${r}, 0, ${b})`;
   }
 
-  drawTool(game: GameState, player: string){
+  async drawTool(game: GameState, player: string){
     if (!game) return;
 
     game.inventory[player].tool.push(game.tools[0])
@@ -1424,9 +1569,10 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.tools.length === 0){
       game.tools = this.shuffle([...toolsList])
     }
-
+    await this.roomService.setGameState(this.roomId, game);
   }
-  drawLoot(game: GameState, player: string){
+
+  async drawLoot(game: GameState, player: string){
     if (!game) return;
 
     game.inventory[player].loot.push(game.loots[0])
@@ -1435,7 +1581,495 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.loots.length === 0){
       game.loots = this.shuffle([...lootList])
     }
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  async drawEvent(game: GameState){
+    if (!game) return;
+
+    let eventName = game.events[0]
+    game.events = game.events.splice(1);
+
+    if(game.events.length === 0){
+      game.events = this.shuffle([...eventList])
+    }
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  protected readonly Math = Math;
+
+  isInvisible = false
+  protected async toolClick(room: Room, tool: string) {
+    if (!room.game) return;
+    if (this.isSpectator(room) || !this.isMyTurn(room)) return
+    const ok = confirm(`Biztos elhasználod: ${tool}?`);
+    if (!ok) return;
+
+    const game = room.game;
+
+    if (tool === "Makeup"){
+      for (let i = 0; i < game.playerOrder.length; i++) {
+        if (game.playerPositions[game.playerOrder[i]].floor === game.playerPositions[this.playerName].floor && game.playerPositions[game.playerOrder[i]].tileIdx === game.playerPositions[this.playerName].tileIdx){
+          game.healths[game.playerOrder[i]] = Math.min(game.healths[game.playerOrder[i]] + 1, 3)
+        }
+      }
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+    if (tool === "Virus") {
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 16; j++) {
+          if (game.floors[i].tiles[j].type === "ComputerMotion"){
+            choice1.hidden = !game.floors[i].tiles[j].revealed
+          }
+          if (game.floors[i].tiles[j].type === "ComputerLaser"){
+            choice2.hidden = !game.floors[i].tiles[j].revealed
+          }
+          if (game.floors[i].tiles[j].type === "ComputerFingerprint"){
+            choice3.hidden = !game.floors[i].tiles[j].revealed
+          }
+        }
+      }
+
+      choice1.innerText = "Motion"
+      choice2.innerText = "Laser"
+      choice3.innerText = "Fingerprint"
+      this.animatation = true
+      dialog.showModal();
+
+      dialog.onclose = async () => {
+        if (dialog.returnValue === "1") {game.hackMotion = Math.min(6,game.hackMotion + 3)}
+        if (dialog.returnValue === "2") {game.hackLaser = Math.min(6,game.hackLaser + 3)}
+        if (dialog.returnValue === "3") {game.hackFingerprint = Math.min(6,game.hackFingerprint + 3)}
+
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
+
+
+        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+        if (room.game)
+        await this.roomService.setGameState(this.roomId, room.game);
+      };
+    }
+
+    if (tool === "Smoke") {
+      const playerPosition = game.playerPositions[this.playerName]
+      game.floors[playerPosition.floor].tiles[playerPosition.tileIdx].stealthtoken += 3
+
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+    if (tool === "EMP") {
+      game.emp = this.playerName
+
+      for (let i = 0; i < 3; i++) {
+        game.floors[i].alarms = []
+      }
+
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+    if (tool === 'Blueprint') {
+      // 1) kötelező célválasztás, közben lock
+      const { fIdx, tIdx } = await this.askBlueprintTarget(room);
+
+      // 2) felfedés (bármelyik mező)
+      game.floors[fIdx].tiles[tIdx].revealed = true;
+
+      // (opcionális) ha szeretnéd, hogy a blueprint “ráálljon” a nézett szintre:
+      this.activeFloorIdx = fIdx;
+
+      // 3) tool levonása
+      const invTools = game.inventory[this.playerName].tool;
+      invTools.splice(invTools.indexOf(tool), 1);
+
+      // 4) mentés
+      await this.roomService.setGameState(this.roomId, game);
+      return;
+    }
+
+    if (tool === "Invisible") {
+      this.isInvisible = true
+      game.currentAP += 1
+
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+    if (tool === "Thermal") {
+      if (game.playerPositions[this.playerName].floor === 0){
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsUp = true
+        this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+        game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+        await this.roomService.setGameState(this.roomId, room.game);
+      }
+      else if (game.playerPositions[this.playerName].floor === 2){
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true
+        this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+        game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+        await this.roomService.setGameState(this.roomId, room.game);
+      } else {
+        const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+        const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+        const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+        const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+
+        choice1.innerText = "Fel"
+        choice2.innerText = "Le"
+        choice3.hidden = true
+        this.animatation = true
+        dialog.showModal();
+
+        dialog.onclose = async () => {
+          if (dialog.returnValue === "1") {
+            this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+            game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsUp = true}
+          if (dialog.returnValue === "2") {
+            this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+            game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true}
+
+          this.animatation = false;
+          choice1.hidden = false
+          choice2.hidden = false
+          choice3.hidden = false
+
+          if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+          if (room.game)
+            await this.roomService.setGameState(this.roomId, room.game);
+        };
+      }
+    }
+
+    if (tool === "Roller") {
+      game.currentAP += 2
+
+
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+    if (tool === "Donut") {
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+
+      choice1.innerText = "1. Szint"
+      choice2.innerText = "2. Szint"
+      choice3.innerText = "3. Szint"
+      this.animatation = true
+      dialog.showModal();
+
+      dialog.onclose = async () => {
+        if (dialog.returnValue === "1") {
+          game.guardPositions[0].donut = true
+        }
+        if (dialog.returnValue === "2") {
+          game.guardPositions[1].donut = true
+        }
+        if (dialog.returnValue === "3") {
+          game.guardPositions[2].donut = true
+        }
+
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
+
+        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+        if (room.game)
+          await this.roomService.setGameState(this.roomId, room.game);
+      };
+    }
+
+    if (tool === "Dynamite") {
+      let walls = []
+      let playerFloor = game.playerPositions[this.playerName].floor
+      let playerIdx = game.playerPositions[this.playerName].tileIdx
+      if (game.floors[playerFloor].tiles[playerIdx].walls.top && playerIdx > 3)
+        walls.push("Top")
+      if (game.floors[playerFloor].tiles[playerIdx].walls.right && playerIdx % 4 !== 3)
+        walls.push("Right")
+      if (game.floors[playerFloor].tiles[playerIdx].walls.bottom && playerIdx < 12)
+        walls.push("Bottom")
+      if (game.floors[playerFloor].tiles[playerIdx].walls.left && playerIdx % 4 !== 0)
+        walls.push("Left")
+
+      if (walls.length === 0)
+        return
+
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+
+      if (walls.length > 0)
+        choice1.innerText = walls[0]
+      if (walls.length > 1)
+        choice2.innerText = walls[1]
+      else
+        choice2.hidden = true
+      if (walls.length > 2)
+        choice3.innerText = walls[2]
+      else
+        choice3.hidden = true
+      this.animatation = true
+      dialog.showModal();
+
+      dialog.onclose = async () => {
+        let idx = -1
+        if (dialog.returnValue === "1") {
+          idx = 0
+        }
+        if (dialog.returnValue === "2") {
+          idx = 1
+        }
+        if (dialog.returnValue === "3") {
+          idx = 2
+        }
+        if (dialog.returnValue === "Cancel") {
+          this.animatation = false;
+          choice1.hidden = false
+          choice2.hidden = false
+          choice3.hidden = false
+          return
+        }
+
+        if (walls[idx] === "Top"){
+          game.floors[playerFloor].tiles[playerIdx].walls.top = false
+          game.floors[playerFloor].tiles[playerIdx - 4].walls.bottom = false
+        }
+        if (walls[idx] === "Bottom"){
+          game.floors[playerFloor].tiles[playerIdx].walls.bottom = false
+          game.floors[playerFloor].tiles[playerIdx + 4].walls.top = false
+        }
+        if (walls[idx] === "Right"){
+          game.floors[playerFloor].tiles[playerIdx].walls.right = false
+          game.floors[playerFloor].tiles[playerIdx + 1].walls.left = false
+        }
+        if (walls[idx] === "Left"){
+          game.floors[playerFloor].tiles[playerIdx].walls.left = false
+          game.floors[playerFloor].tiles[playerIdx - 1].walls.right = false
+        }
+
+        this.triggerAlarm(game, "Dynamite", playerFloor, playerIdx)
+
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
+
+        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+        if (room.game)
+          await this.roomService.setGameState(this.roomId, room.game);
+      };
+    }
+
+    if (tool === "Crowbar") {
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+      const choice4 = document.getElementById("choice-4") as HTMLDialogElement;
+
+      let playerFloor = game.playerPositions[this.playerName].floor
+      let playerIdx = game.playerPositions[this.playerName].tileIdx
+
+      if (playerIdx > 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 4].type) === -1)
+        choice1.innerText = "Up"
+      else
+        choice1.hidden = true
+      if (playerIdx % 4 !== 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 1].type) === -1)
+        choice2.innerText = "Right"
+      else
+        choice2.hidden = true
+      if (playerIdx < 12 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 4].type) === -1)
+        choice3.innerText = "Down"
+      else
+        choice3.hidden = true
+      if (playerIdx % 4 !== 0 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 1].type) === -1)
+        {choice4.innerText = "Left"
+        choice4.hidden = false}
+      else
+        choice4.hidden = true
+
+
+      this.animatation = true
+      dialog.showModal();
+
+      dialog.onclose = async () => {
+        if (dialog.returnValue === "1") {
+          game.floors[playerFloor].tiles[playerIdx - 4].type = 'Disabled'
+        }
+        if (dialog.returnValue === "2") {
+          game.floors[playerFloor].tiles[playerIdx + 1].type = 'Disabled'
+        }
+        if (dialog.returnValue === "3") {
+          game.floors[playerFloor].tiles[playerIdx + 4].type = 'Disabled'
+        }
+        if (dialog.returnValue === "4") {
+          game.floors[playerFloor].tiles[playerIdx - 1].type = 'Disabled'
+        }
+
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
+        choice4.hidden = true
+
+        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+        if (room.game)
+          await this.roomService.setGameState(this.roomId, room.game);
+      };
+    }
+
+    if (tool === "Stethoscope") {
+      let playerFloor = game.playerPositions[this.playerName].floor
+      let playerIdx = game.playerPositions[this.playerName].tileIdx
+      if (game.floors[playerFloor].tiles[playerIdx].type !== "Safe")
+        return
+
+      const row = Math.floor(playerIdx / 4)
+      const col = playerIdx % 4;
+
+      let cracks: any = new Set<number>();
+
+      for (let c = 0; c < 4; c++) {
+        if (row * 4 + c === playerIdx) continue;
+        if (!room.game.floors[playerFloor].tiles[row * 4 + c].cracked && room.game.floors[playerFloor].tiles[row * 4 + c].revealed)
+          cracks.add(room.game.floors[playerFloor].tiles[row * 4 + c].number)
+      }
+
+      for (let r = 0; r < 4; r++) {
+        if (r * 4 + col === playerIdx) continue;
+        if (!room.game.floors[playerFloor].tiles[r * 4 + col].cracked && room.game.floors[playerFloor].tiles[r * 4 + col].revealed)
+          cracks.add(room.game.floors[playerFloor].tiles[r * 4 + col].number)
+      }
+
+      if (cracks.length === 0) return
+
+      cracks = [...cracks]
+      let randNumber = cracks[Math.floor(Math.random() * cracks.length)]
+      await this.crackSafe(room, playerFloor, playerIdx, [randNumber, 0, 0, 0, 0, 0])
+
+      game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
+      await this.roomService.setGameState(this.roomId, room.game);
+    }
+
+
+    if (tool === "Crystal") {
+
+      const { ordered, remainder } = await this.askCrystalReorder(room);
+
+      // új pakli: rendezett 3 megy a tetejére
+      game.events = [...ordered, ...remainder];
+
+      // tool levonása
+      game.inventory[this.playerName].tool.splice(
+        game.inventory[this.playerName].tool.indexOf(tool),
+        1
+      );
+
+      await this.roomService.setGameState(this.roomId, room.game);
+      return;
+
+    }
+
 
   }
-  protected readonly Math = Math;
+
+  showBlueprintDialog = false;
+
+  private blueprintResolver: ((value: { fIdx: number; tIdx: number }) => void) | null = null;
+
+// opcionális: melyik szint látszódjon a modalban
+  blueprintFloorIdx = 0;
+
+  askBlueprintTarget(room: Room): Promise<{ fIdx: number; tIdx: number }> {
+    // alapból a játékos szintjére ugrunk, ha van
+    const myPos = room.game?.playerPositions?.[this.playerName ?? ''];
+    if (myPos) this.blueprintFloorIdx = myPos.floor;
+
+    this.showBlueprintDialog = true;
+    this.animatation = true; // <= EZ LOCKOL mindent nálad (isMyTurn tilt) [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+
+    return new Promise(resolve => {
+      this.blueprintResolver = resolve;
+    });
+  }
+
+  resolveBlueprintTarget(fIdx: number, tIdx: number, revealed: boolean) {
+    if (!this.blueprintResolver) return;
+    if (revealed) return;
+    this.showBlueprintDialog = false;
+    this.animatation = false;
+    this.blueprintResolver({ fIdx, tIdx });
+    this.blueprintResolver = null;
+  }
+
+  // --- Crystal dialog state ---
+  showCrystalDialog = false;
+
+// a három "felhúzott" event (név stringek)
+  crystalCards: string[] = [];
+
+// a pakli maradéka (a top3 után)
+  private crystalRemainder: string[] = [];
+
+// promise resolver (nincs cancel ág)
+  private crystalResolver: ((value: { ordered: string[]; remainder: string[] }) => void) | null = null;
+
+  askCrystalReorder(room: Room): Promise<{ ordered: string[]; remainder: string[] }> {
+    const game = room.game!;
+    // working pakli: ha nincs 3 lap, keverünk újat
+    let workingDeck = Array.isArray(game.events) ? [...game.events] : [];
+
+    // ha nincs elég 3 event, újrakeverés (event/discard még nincs implementálva) [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+    if (workingDeck.length < 3) {
+      workingDeck = this.shuffle([...eventList]);
+    }
+
+    // top 3
+    const drawCount = Math.min(3, workingDeck.length);
+    this.crystalCards = workingDeck.slice(0, drawCount);
+    this.crystalRemainder = workingDeck.slice(drawCount);
+
+    // UI lock + modal
+    this.showCrystalDialog = true;
+    this.animatation = true; // lock: amíg nyitva van, ne lehessen mást csinálni [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+
+    return new Promise(resolve => {
+      this.crystalResolver = resolve;
+    });
+  }
+
+  confirmCrystalDialog() {
+    if (!this.crystalResolver) return;
+
+    const ordered = [...this.crystalCards];
+    const remainder = [...this.crystalRemainder];
+
+    this.showCrystalDialog = false;
+    this.animatation = false;
+
+    this.crystalResolver({ ordered, remainder });
+    this.crystalResolver = null;
+  }
+
+// vízszintes drag&drop handler
+  dropCrystal(event: CdkDragDrop<string[]>) {
+    moveItemInArray(this.crystalCards, event.previousIndex, event.currentIndex);
+  }
+
 }
