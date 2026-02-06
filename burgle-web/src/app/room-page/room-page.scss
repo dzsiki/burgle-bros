@@ -1067,7 +1067,7 @@ dialog form {
   border-radius: 16px;
 
   width: min(900px, 95vw);
-  max-height: min(82vh, 860px);
+  //max-height: min(82vh, 860px);
   overflow: auto;
 
   border: 1px solid rgba(255,255,255,0.16);
@@ -1235,6 +1235,34 @@ dialog form {
 
 .crystalActions button{
   padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.eventImg{
+  display: block;
+  margin: 12px auto 14px auto;
+  max-width: min(82vw, 560px);
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+
+.eventFallback{
+  margin: 12px auto 14px auto;
+  padding: 22px;
+  width: min(82vw, 560px);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.18);
+  text-align: center;
+  font-weight: 900;
+}
+
+.eventOk{
+  display: block;
+  margin: 0 auto;
+  padding: 12px 20px;
   border-radius: 999px;
   font-weight: 900;
 }

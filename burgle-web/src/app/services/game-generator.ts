@@ -92,7 +92,9 @@ export function generateGame(seed: string): GameState {
     loots: shuffle([...lootList], random),
     events: shuffle([...eventList], random),
     inventory: {},
-    emp: ""
+    emp: "",
+    timelock: "",
+    cameraloop: "",
   };
 }
 

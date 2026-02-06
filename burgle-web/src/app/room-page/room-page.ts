@@ -290,7 +290,10 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <div>Laser hacks:   {{ room.game?.hackLaser }}</div>
                 <div>Fingerprint hacks: {{ room.game?.hackFingerprint }}</div>
                 <div>Guard speed: {{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</div>
+                <div>---Aktív eventek---</div>
                 <div>{{ room.game?.emp === "" ? "" : "EMP aktív! Nincs alarm!" }}</div>
+                <div>{{ room.game?.timelock === "" ? "" : "Time lock aktív! Nincs lépcső!" }}</div>
+                <div>{{ room.game?.cameraloop === "" ? "" : "Video loop aktív! Nincsenek kamerák!" }}</div>
 
 
                 <div class="dice-container panel-dice">
@@ -438,6 +441,28 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
               </div>
               </div>
             }
+
+        @if (showEventDialog) {
+          <div class="overlay">
+            <div class="modal">
+              <h4>Esemény</h4>
+
+              @if (currentEventName) {
+                @let imgUrl = getOrLoadTileImage('event-' + currentEventName);
+
+                @if (imgUrl && imgUrl != '') {
+                  <img class="eventImg" [ngSrc]="imgUrl" width="1" height="1" alt="{{currentEventName}}">
+                } @else {
+                  <div class="eventFallback">
+                    {{ currentEventName }}
+                  </div>
+                }
+              }
+
+              <button class="btn eventOk" (click)="confirmEventDialog()">OK</button>
+            </div>
+          </div>
+        }
 
 
             <style>
@@ -700,10 +725,10 @@ export class RoomPageComponent implements AfterViewInit {
     if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
 
     if (dir === 'floorUp') {
-      return fIdx < 2 && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp);
+      return fIdx < 2 && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp) && room.game.timelock === "";
     }
     if (dir === 'floorDown') {
-      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway' || room.game.floors[fIdx].tiles[tIdx].thermalStairsDown);
+      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway' || room.game.floors[fIdx].tiles[tIdx].thermalStairsDown) && room.game.timelock === "";
     }
 
     let targetIdx = this.calcTargetIdx(tIdx, dir);
@@ -738,11 +763,11 @@ export class RoomPageComponent implements AfterViewInit {
     if (tIdx === myPos.tileIdx) {
       // Felmenetel
       if (fIdx === myPos.floor + 1) {
-        return room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsUp;
+        return (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)) || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsUp;
       }
       // Lemenetel
       if (fIdx === myPos.floor - 1) {
-        return room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsDown;
+        return (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)) || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsDown;
       }
     }
 
@@ -817,7 +842,9 @@ export class RoomPageComponent implements AfterViewInit {
     const myPos = room.game.playerPositions?.[name];
     if (!myPos) return;
 
+    console.log(dir)
     if (dir === 'floorUp' || dir === 'floorDown') {
+      console.log(this.canMove(room, myPos.floor, myPos.tileIdx, dir))
       if (this.canMove(room, myPos.floor, myPos.tileIdx, dir)) {
         const targetFloor = dir === 'floorUp' ? myPos.floor + 1 : myPos.floor - 1;
         await this.moveToTile(room, targetFloor, myPos.tileIdx);
@@ -1225,9 +1252,15 @@ export class RoomPageComponent implements AfterViewInit {
       return
     }
 
+    if(guard.target.x === guard.pos.x && guard.target.y === guard.pos.y) {
+      guard.target = {x: 0, y: 0}
+      guard.pos = {x:1, y:1}
+    }
+
     let path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
 
-    const gspeed = guard.speed + game.floors[floorIdx].alarms.length
+    const gspeed = guard.speed + game.floors[floorIdx].alarms.length + this.espresso
+    this.espresso = 0
     for (let i = 1; i <= gspeed; i++) {
       const nextIdx = path[1];
       path = path.splice(1);
@@ -1347,7 +1380,10 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (prevPlayerPos) {
       game.currentPlayerIdx = -1;
-      await this.moveGuardWithDelay(game, prevPlayerPos.floor);
+      if (this.shiftchange === 0)
+        await this.moveGuardWithDelay(game, prevPlayerPos.floor);
+      else
+        this.shiftchange = 0
     }
 
     for (let i = 0; i < game.keypads.length; i++) {
@@ -1355,11 +1391,19 @@ export class RoomPageComponent implements AfterViewInit {
     }
     this.triggeredMotions = [];
 
+    if(this.jumpthegun === 1){
+      nextplayerIdx = (nextplayerIdx + 1) % game.playerOrder.length
+      this.jumpthegun = 0
+    }
     game.currentPlayerIdx = nextplayerIdx;
     game.currentAP = 4;
 
     if (game.inventory[game.playerOrder[game.currentPlayerIdx]].loot.indexOf("Mirror") !== -1){
       game.currentAP -= 1;
+    }
+    if (this.headsup === 1){
+      game.currentAP += 1;
+      this.headsup = 0;
     }
 
     if (game.inventory[game.playerOrder[game.currentPlayerIdx]].loot.indexOf("Chihuahua") !== -1){
@@ -1371,6 +1415,12 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (game.emp === game.playerOrder[game.currentPlayerIdx]){
       game.emp = ""
+    }
+    if (game.timelock === game.playerOrder[game.currentPlayerIdx]){
+      game.timelock = ""
+    }
+    if (game.cameraloop === game.playerOrder[game.currentPlayerIdx]){
+      game.cameraloop = ""
     }
 
     if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
@@ -1494,7 +1544,7 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
-  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite' | "Chihuahua", fIdx: number, tIdx: number) {
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite' | "Chihuahua" | "Shoplifting", fIdx: number, tIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
     const guard = game.guardPositions[guardIdx];
 
@@ -1527,7 +1577,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite" || roomType === "Chihuahua") {
+    if ((roomType === 'Camera' && game.cameraloop === "") || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite" || roomType === "Chihuahua" || roomType === "Shoplifting") {
       game.floors[fIdx].alarms.push(tIdx);
     }
 
@@ -1751,6 +1801,10 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
+  espresso = 0
+  headsup = 0
+  jumpthegun = 0
+  shiftchange = 0
   async drawEvent(game: GameState){
     if (!game) return;
 
@@ -1761,9 +1815,158 @@ export class RoomPageComponent implements AfterViewInit {
       game.events = this.shuffle([...eventList])
     }
 
+    await this.askEventAcknowledge(eventName)
+
     console.log(eventName)
 
+    if (eventName === "Espresso"){
+      this.espresso = 1
+    }
+    if (eventName === "DayDreaming"){
+      this.espresso = -1
+    }
+    if (eventName === "Reboot"){
+      game.hackLaser = 1
+      game.hackFingerprint = 1
+      game.hackMotion = 1
+    }
+    if (eventName === "DeadDrop"){
+      let rightPlayerIndex = (game.currentPlayerIdx - 1) < 0 ? game.playerOrder.length - 1 : (game.currentPlayerIdx - 1)
+      let rightplayerName = game.playerOrder[rightPlayerIndex]
+
+      game.inventory[rightplayerName].loot.push(...game.inventory[this.playerName].loot)
+      game.inventory[this.playerName].loot = []
+      game.inventory[rightplayerName].tool.push(...game.inventory[this.playerName].tool)
+      game.inventory[this.playerName].tool = []
+    }
+    if (eventName === "BrownOut"){
+      for (let i = 0; i < 3; i++) {
+      if (game.floors[i].alarms.length < game.guardPositions[i].moves.length){
+        game.guardPositions[i].moves = game.guardPositions[i].moves.slice(Math.min(0,game.floors[i].alarms.length - 1))
+      } else {
+        let toberemoved = game.floors[i].alarms.length - game.guardPositions[i].moves.length
+        this.generateNewGuardTargets(game.guardPositions[i])
+        game.guardPositions[i].moves = game.guardPositions[i].moves.slice(toberemoved)
+      }
+        game.floors[i].alarms = []
+      }
+
+
+    }
+    if (eventName === "Shoplifting"){
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 16; j++) {
+          if (game.floors[i].tiles[j].type === "Laboratory" && game.floors[i].tiles[j].cracked)
+            this.triggerAlarm(game, "Shoplifting", i, j)
+        }
+      }
+    }
+
+    if (eventName === "TimeLock") {
+      game.timelock = this.playerName
+    }
+    if (eventName === "ChangeOfPlans") {
+      if(game.floors[game.playerPositions[this.playerName].floor].alarms.length === 0){
+        game.guardPositions[game.playerPositions[this.playerName].floor].target = game.guardPositions[game.playerPositions[this.playerName].floor].moves[0]
+        game.guardPositions[game.playerPositions[this.playerName].floor].moves = game.guardPositions[game.playerPositions[this.playerName].floor].moves.slice(1)
+        if(game.guardPositions[game.playerPositions[this.playerName].floor].moves.length === 0){
+          this.generateNewGuardTargets(game.guardPositions[game.playerPositions[this.playerName].floor])
+        }
+      }
+    }
+    if (eventName === "HeadsUp") {
+      this.headsup = 1;
+    }
+    if (eventName === "VideoLoop") {
+      game.cameraloop = this.playerName
+    }
+    if (eventName === "JumpTheGun") {
+      this.jumpthegun = 1
+    }
+    if (eventName === "Jury-rig") {
+      await this.drawTool(game,this.playerName)
+    }
+    if (eventName === "FreightElevator") {
+      game.playerPositions[this.playerName].floor = Math.min(2, game.playerPositions[this.playerName].floor + 1)
+      game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
+    }
+    if (eventName === "WhereIsHe") {
+      game.guardPositions[game.playerPositions[this.playerName].floor].pos = game.guardPositions[game.playerPositions[this.playerName].floor].target
+      game.guardPositions[game.playerPositions[this.playerName].floor].target = game.guardPositions[game.playerPositions[this.playerName].floor].moves[0]
+      game.guardPositions[game.playerPositions[this.playerName].floor].moves = game.guardPositions[game.playerPositions[this.playerName].floor].moves.slice(1)
+      if(game.guardPositions[game.playerPositions[this.playerName].floor].moves.length === 0){
+        this.generateNewGuardTargets(game.guardPositions[game.playerPositions[this.playerName].floor])
+      }
+    }
+    if (eventName === "LostGrip") {
+      game.playerPositions[this.playerName].floor = Math.max(0, game.playerPositions[this.playerName].floor - 1)
+      game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
+    }
+    if (eventName === "SwitchSigns") {
+      let oldtarget = game.guardPositions[game.playerPositions[this.playerName].floor].pos
+      game.guardPositions[game.playerPositions[this.playerName].floor].pos = game.guardPositions[game.playerPositions[this.playerName].floor].target
+      game.guardPositions[game.playerPositions[this.playerName].floor].target = oldtarget
+    }
+    if (eventName === "Lampshade") {
+      game.healths[this.playerName] = Math.min(3, game.healths[this.playerName] + 1)
+    }
+    if (eventName === "Crash") {
+      if(game.floors[game.playerPositions[this.playerName].floor].alarms.length === 0){
+        game.guardPositions[game.playerPositions[this.playerName].floor].target = {x: game.playerPositions[this.playerName].tileIdx % 4, y: Math.floor(game.playerPositions[this.playerName].tileIdx / 4)}
+      }
+    }
+    if (eventName === "KeycodeChange") {
+      for (let i = 0; i < game.keypads.length; i++) {
+        game.keypads[i].opened = false
+      }
+    }
+    if (eventName === "ShiftChange") {
+      this.shiftchange = 1
+      if(game.playerPositions[this.playerName].floor !== 0)
+        await this.moveGuardWithDelay(game, 0)
+      if(game.playerPositions[this.playerName].floor !== 1)
+        await this.moveGuardWithDelay(game, 1)
+      if(game.playerPositions[this.playerName].floor !== 2)
+        await this.moveGuardWithDelay(game, 2)
+    }
+    if (eventName === "") {
+
+    }
+    if (eventName === "") {
+
+    }
+
+    //   'ThrowVoice', 'Peekhole', 'GoWithYourGut', 'KeycodeChange', '', '', 'BuddySystem', 'Squeak', 'Gymnastics',
+    //   '', '', '', '', '', '', '', ''
     await this.roomService.setGameState(this.roomId, game);
+  }
+
+  // --- Event modal state ---
+  showEventDialog = false;
+  currentEventName: string | null = null;
+
+  private eventDialogResolver: (() => void) | null = null;
+
+  private askEventAcknowledge(eventName: string): Promise<void> {
+    this.currentEventName = eventName;
+    this.showEventDialog = true;
+    this.animatation = true;
+    this.cdr.detectChanges();
+
+    return new Promise(resolve => {
+      this.eventDialogResolver = resolve;
+    });
+  }
+
+  confirmEventDialog() {
+    if (!this.eventDialogResolver) return;
+
+    this.showEventDialog = false;
+    this.animatation = false;
+    this.currentEventName = null;
+
+    this.eventDialogResolver();
+    this.eventDialogResolver = null;
   }
 
   protected readonly Math = Math;

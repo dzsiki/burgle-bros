@@ -61,7 +61,9 @@ export interface GameState {
   events: string[];
   loots: string[];
   inventory: { [playerName: string]: { loot: string[], tool: string[]} };
-  emp: string
+  emp: string;
+  timelock: string;
+  cameraloop: string;
 }
 
 export type Room = {

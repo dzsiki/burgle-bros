@@ -61,32 +61,32 @@ tiara: guards see from adjustent tile ✔
 chihuahua: end of turn roll die, if 6 trigger alarm ✔
 
 Events:
-espresso: guard +1 move this turn
-reboot: all computer reset to 1 token
-dead drop: give all loot to next player
-brown out: remove all alarm, discard guard moves alarm count
-shoplifting: trigger alarm on laboratory, if tool taken
-time lock: cant use stairs next turn
-change of plans: if no alarm, draw next guard move
-heads up: next player gets +1 action
-video loop: ignore all camera this turn
+espresso: guard +1 move this turn ✔
+reboot: all computer reset to 1 token ✔
+dead drop: give all loot to next player ✔
+brown out: remove all alarm, discard guard moves alarm count ✔
+shoplifting: trigger alarm on laboratory, if tool taken ✔
+time lock: cant use stairs next turn ✔
+change of plans: if no alarm, draw next guard move ✔
+heads up: next player gets +1 action ✔
+video loop: ignore all camera this turn ✔
 throw voice: if no alarm, move guard target to adjustent tile
 peekhole: peek to any adjustent tile, up or down too
 go with your gut: if unrevealed tile adjust, reveal it and move there
-keycode change: all keypad reset
-crash: trigger alarm on current tile
-lampshade: gain HP
+keycode change: all keypad reset ✔
+crash: trigger alarm on current tile ✔
+lampshade: gain HP ✔
 buddy system: move a player next to you
 squeak: move the guard 1 tile towards closest player
 gymnastics: walkway can used as stairs
-shift change: guards on other floor move only
-switch signs: guard pose and target switch
-lost grip: fall a floor
-daydreaming: guard -1 move
-jump the gun: skip next player's turn
-jury-rig: draw a tool
-freight elevator: move up 1 floor
-where is he?: guard jump to current destination
+shift change: guards on other floor move only ✔
+switch signs: guard pose and target switch ✔
+lost grip: fall a floor ✔
+daydreaming: guard -1 move ✔
+jump the gun: skip next player's turn ✔
+jury-rig: draw a tool ✔
+freight elevator: move up 1 floor ✔
+where is he?: guard jump to current destination ✔
 
 
 
