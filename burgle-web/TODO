@@ -47,18 +47,18 @@ donut: disable guard for 1 turn ✔
 
 
 LOOT:
-BUST: cant use tools while carrying
-stamp: draw event if AP <= 1
-keycard: holder needed for safe rolls
-persian cat: roll die end of turn if 1 or 2 move 1 towards alarm
-gold bar: place one more, only one can carried by person
-cursed goblet: lose 1 HP
-mirror: -1 action, not trigger laser
-painting: cant use secret door or service duct
-isotope: thermo instant alarm
-gemstone: 2 action to enter if other player present
-tiara: guards see from adjustent tile
-chihuahua: end of turn roll die, if 6 trigger alarm
+BUST: cant use tools while carrying ✔
+stamp: draw event if AP <= 1 ✔
+keycard: holder needed for safe rolls ✔
+persian cat: roll die end of turn if 1 or 2 move 1 towards alarm ✔
+gold bar: place one more, only one can carried by person ✔
+cursed goblet: lose 1 HP ✔
+mirror: -1 action, not trigger laser ✔
+painting: cant use secret door or service duct ✔
+isotope: thermo instant alarm ✔
+gemstone: 2 action to enter if other player present ✔
+tiara: guards see from adjustent tile ✔
+chihuahua: end of turn roll die, if 6 trigger alarm ✔
 
 Events:
 espresso: guard +1 move this turn

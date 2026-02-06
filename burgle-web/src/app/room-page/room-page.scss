@@ -610,12 +610,12 @@ html, body {
   background: black;
   color: white;
   border-radius: 50%;
-  font-size: 55%;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2px solid white;
   font-weight: bold;
+  font-size: larger;
   z-index: 15;
   pointer-events: none;
 }

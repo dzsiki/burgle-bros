@@ -27,6 +27,8 @@ export interface Tile {
   stealthtoken: number;
   thermalStairsUp: boolean;
   thermalStairsDown: boolean;
+  cat: boolean;
+  gold: boolean
 }
 
 export interface keypadTile {

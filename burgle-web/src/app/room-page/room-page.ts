@@ -243,6 +243,10 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                                    [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
                               </div>
                             }
+                            @if (tile.cat) {
+                              <div class="player-pawn" title="Cat">🐱</div>}
+                            @if (tile.gold) {
+                              <div class="player-pawn" title="Cat">🧈</div>}
                           </div>
                           @if (tile.revealed) {
                             @if (tile.type !== 'Safe') {
@@ -721,7 +725,7 @@ export class RoomPageComponent implements AfterViewInit {
       return x === 0 || x === 3 || y === 0 || y === 3;
     }
 
-    if ((myPos.floor != fIdx && myPos.tileIdx != tIdx) && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].revealed) return true
+    if ((myPos.floor != fIdx && myPos.tileIdx != tIdx) && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].revealed && room.game.inventory[this.playerName].loot.indexOf("Painting") === -1) return true
 
 
     // Szinten belüli mozgás/peek
@@ -763,7 +767,7 @@ export class RoomPageComponent implements AfterViewInit {
     const tile1 = room.game.floors[f].tiles[t1];
     const tile2 = room.game.floors[f].tiles[t2];
 
-    if (tile2.type === 'SecretDoor' && tile2.revealed) return false;
+    if (tile2.type === 'SecretDoor' && tile2.revealed && room.game.inventory[this.playerName].loot.indexOf("Painting") === -1) return false;
 
     if (x1 < x2) return (tile1.walls.right || tile2.walls.left);
     if (x1 > x2) return (tile1.walls.left || tile2.walls.right);
@@ -865,6 +869,15 @@ export class RoomPageComponent implements AfterViewInit {
     const name = this.playerName ?? '';
     let sameFloor = game.playerPositions[name].floor === fIdx;
 
+    let occupiedandgemstone = false;
+    for (const player in game.playerPositions) {
+      if (game.playerPositions[player].floor === fIdx && game.playerPositions[player].tileIdx === tIdx) {
+        occupiedandgemstone = true;
+        break;
+      }
+    }
+    occupiedandgemstone = !(occupiedandgemstone && game.inventory[this.playerName].loot.indexOf("Gemstone") !== -1)
+
     if (game.floors[fIdx].tiles[tIdx].type === 'SafetyLock') {
       let occupied = false;
       for (const player in game.playerPositions) {
@@ -877,7 +890,7 @@ export class RoomPageComponent implements AfterViewInit {
 
 
       if (occupied) {
-        if (!await this.useActionPoint(game, 1)) {return;}
+        if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
       } else {
         if (!await this.useActionPoint(game, 3)) {
           if (!game.floors[fIdx].tiles[tIdx].revealed) {
@@ -892,8 +905,8 @@ export class RoomPageComponent implements AfterViewInit {
 
     } else {
       if (game.floors[fIdx].tiles[tIdx].type === 'Laser') {
-        if (!game.floors[fIdx].tiles[tIdx].revealed) {
-          if (!await this.useActionPoint(game, 1)) {return;}
+        if (!game.floors[fIdx].tiles[tIdx].revealed || (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1)) {
+          if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
           this.triggerAlarm(game, "Laser", fIdx, tIdx);
         } else {
           const guard = game.guardPositions[fIdx];
@@ -903,16 +916,16 @@ export class RoomPageComponent implements AfterViewInit {
               if (!await this.useActionPoint(game, 2)) {return;}
             }else {
 
-              if (!await this.useActionPoint(game, 1)) {return;}
+              if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
               this.triggerAlarm(game, "Laser", fIdx, tIdx);
             }
           } else {
-            if (!await this.useActionPoint(game, 1)) {return;}
+            if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
             this.triggerAlarm(game, "Laser", fIdx, tIdx);
           }
         }
       }else {
-          if (!await this.useActionPoint(game, 1)) {return;}
+          if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
       }
     }
 
@@ -962,7 +975,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.healths[name] = (game.healths[name] || 1) - 1;}
     }
 
-    if (this.isAdjacent(fIdx, guardIdx, fIdx, tIdx) && game.floors[fIdx].tiles[tIdx].type === 'Lobby' && !this.isInvisible){
+    if (this.isAdjacent(fIdx, guardIdx, fIdx, tIdx) && (game.floors[fIdx].tiles[tIdx].type === 'Lobby' || game.inventory[this.playerName].loot.indexOf("Tiara") !== -1) && !this.isInvisible){
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
@@ -985,6 +998,9 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.floors[fIdx].tiles[tIdx].type === 'Fingerprint')
       this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
 
+    if(game.floors[fIdx].tiles[tIdx].type === 'Thermo' && game.inventory[this.playerName].loot.indexOf("Isotope") !== -1)
+      this.triggerAlarm(game, "Thermo", fIdx, tIdx);
+
     if(game.floors[fIdx].tiles[tIdx].type === 'Camera' && !this.isInvisible)
       this.checkCameras(game,false, fIdx, tIdx);
 
@@ -997,6 +1013,16 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].cracked) {
       await this.drawTool(game,this.playerName)
       game.floors[fIdx].tiles[tIdx].cracked = true;
+    }
+
+    if(game.floors[fIdx].tiles[tIdx].cat){
+      game.floors[fIdx].tiles[tIdx].cat = false
+      game.inventory[this.playerName].loot.push("Cat")
+    }
+
+    if(game.floors[fIdx].tiles[tIdx].gold && game.inventory[this.playerName].loot.indexOf("Gold") === -1){
+      game.floors[fIdx].tiles[tIdx].gold = false
+      game.inventory[this.playerName].loot.push("Gold")
     }
 
     await this.roomService.setGameState(this.roomId, game);
@@ -1152,9 +1178,11 @@ export class RoomPageComponent implements AfterViewInit {
     });
   }
 
+  actionCount = 0
   private async useActionPoint(game: GameState, cost: number) {
     if (game.currentAP < cost) {return false;}
     game.currentAP -= cost;
+    this.actionCount += 1
     return true;
   }
 
@@ -1257,7 +1285,7 @@ export class RoomPageComponent implements AfterViewInit {
             game.healths[player] = (game.healths[player] || 1) - 1;}
         }
 
-        if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby'){
+        if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby' || game.inventory[player].loot.indexOf("Tiara") !== -1){
           if (this.isAdjacent(game.playerPositions[player].floor, game.playerPositions[player].tileIdx, floorIdx, nextIdx)) {
 
               const x1 = game.playerPositions[player].tileIdx % 4;
@@ -1296,6 +1324,13 @@ export class RoomPageComponent implements AfterViewInit {
 
     this.isInvisible = false
 
+    if (game.inventory[this.playerName].loot.indexOf("Cat") !== -1){
+      await this.rollDice(1)
+      if (this.diceValues[0] <= 2){
+        await this.moveTowardAlarm(game)
+      }
+    }
+
     let nextplayerIdx = (game.currentPlayerIdx + 1) % game.playerOrder.length;
 
     // Move guard on the floor where the previous player ended their turn
@@ -1304,6 +1339,11 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.floors[prevPlayerPos.floor].tiles[prevPlayerPos.tileIdx].type === 'Thermo'){
       this.triggerAlarm(game, "Thermo", prevPlayerPos.floor, prevPlayerPos.tileIdx);
     }
+
+    if ( this.actionCount <= 2  || (this.actionCount <= 3 && game.inventory[this.playerName].loot.indexOf("Stamp") !== -1))
+      await this.drawEvent(game)
+
+    this.actionCount = 0
 
     if (prevPlayerPos) {
       game.currentPlayerIdx = -1;
@@ -1318,6 +1358,17 @@ export class RoomPageComponent implements AfterViewInit {
     game.currentPlayerIdx = nextplayerIdx;
     game.currentAP = 4;
 
+    if (game.inventory[game.playerOrder[game.currentPlayerIdx]].loot.indexOf("Mirror") !== -1){
+      game.currentAP -= 1;
+    }
+
+    if (game.inventory[game.playerOrder[game.currentPlayerIdx]].loot.indexOf("Chihuahua") !== -1){
+      await this.rollDice(1)
+      if (this.diceValues[0] === 6){
+        this.triggerAlarm(game,"Chihuahua", game.playerPositions[game.playerOrder[game.currentPlayerIdx]].floor, game.playerPositions[game.playerOrder[game.currentPlayerIdx]].tileIdx)
+      }
+    }
+
     if (game.emp === game.playerOrder[game.currentPlayerIdx]){
       game.emp = ""
     }
@@ -1327,6 +1378,94 @@ export class RoomPageComponent implements AfterViewInit {
     }
     await this.roomService.setGameState(this.roomId, game);
   }
+
+  private async moveTowardAlarm(game: GameState, playerName?: string) {
+    const pName = playerName ?? this.playerName ?? '';
+    if (!pName) return;
+    if (!game?.playerPositions?.[pName]) return;
+
+    const pos = game.playerPositions[pName];
+    const floorIdx = pos.floor;
+
+    const floor = game.floors?.[floorIdx];
+    if (!floor) return;
+
+    const alarms: number[] = Array.isArray(floor.alarms) ? floor.alarms : [];
+    if (alarms.length === 0) return;
+
+    const tiles = floor.tiles;
+    const startIdx = pos.tileIdx;
+
+    // Keressük a legrövidebb path-ot bármelyik alarmhoz
+    let bestPath: number[] | null = null;
+
+    for (const targetIdx of alarms) {
+      const path = this.shortestPathLikeGuard(tiles, startIdx, targetIdx);
+      if (!path) continue;
+
+      if (!bestPath || path.length < bestPath.length) {
+        bestPath = path;
+      }
+    }
+
+    // Ha nincs út vagy már ott áll, nincs lépés
+    if (!bestPath || bestPath.length < 2) return;
+
+    // 1 lépés a path-on
+    const nextIdx = bestPath[1];
+    game.floors[floorIdx].tiles[nextIdx].cat = true
+    game.inventory[this.playerName].loot.splice(game.inventory[this.playerName].loot.indexOf("Cat"), 1)
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  private shortestPathLikeGuard(tiles: Tile[], startIdx: number, targetIdx: number): number[] | null {
+    if (!tiles || tiles.length !== 16) return null;
+    if (startIdx === targetIdx) return [startIdx];
+
+    const queue: number[] = [startIdx];
+    const visited = new Set<number>([startIdx]);
+    const prev = new Map<number, number>(); // child -> parent
+
+    while (queue.length) {
+      const idx = queue.shift()!;
+      if (idx === targetIdx) break;
+
+      const x = idx % 4;
+      const y = Math.floor(idx / 4);
+
+      // SAME neighbor rules as your getGuardPath() [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+      const neighbors: { n: number; ok: boolean }[] = [
+        { n: idx - 4, ok: y > 0 && !tiles[idx].walls.top },
+        { n: idx + 4, ok: y < 3 && !tiles[idx].walls.bottom },
+        { n: idx - 1, ok: x > 0 && !tiles[idx].walls.left },
+        { n: idx + 1, ok: x < 3 && !tiles[idx].walls.right },
+      ];
+
+      for (const { n, ok } of neighbors) {
+        if (!ok) continue;
+        if (visited.has(n)) continue;
+        visited.add(n);
+        prev.set(n, idx);
+        queue.push(n);
+      }
+    }
+
+    if (!visited.has(targetIdx)) return null;
+
+    // Reconstruct path target -> start
+    const path: number[] = [];
+    let cur = targetIdx;
+    path.push(cur);
+    while (cur !== startIdx) {
+      const p = prev.get(cur);
+      if (p === undefined) return null; // safety
+      cur = p;
+      path.push(cur);
+    }
+    path.reverse();
+    return path;
+  }
+
 
   async addToken(room: Room, roomType: string, fIdx: number = -1, tIdx: number = -1) {
     if (!room.game || !this.isMyTurn(room)) return;
@@ -1355,7 +1494,7 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
-  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite', fIdx: number, tIdx: number) {
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite' | "Chihuahua", fIdx: number, tIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
     const guard = game.guardPositions[guardIdx];
 
@@ -1379,13 +1518,16 @@ export class RoomPageComponent implements AfterViewInit {
       }
     }
     if (roomType === 'Laser') {
+      if (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1)
+        return
+
       if (game.hackLaser > 0){
         game.hackLaser -= 1;return}
       else {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite") {
+    if (roomType === 'Camera' || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite" || roomType === "Chihuahua") {
       game.floors[fIdx].alarms.push(tIdx);
     }
 
@@ -1426,6 +1568,23 @@ export class RoomPageComponent implements AfterViewInit {
 
   async crackSafe(room: Room, activeFloorIdx: number, tIdx: number, fixDices: number[] = []) {
     if(!room.game || (room.game.floors[activeFloorIdx].tiles[tIdx].tokens === 0 && fixDices.length === 0 ) || room.game.floors[activeFloorIdx].safeOpened) return;
+
+    let keycardingame = false
+    let playerwithkeycard = ""
+    for (let i = 0; i < room.game.playerOrder.length; i++) {
+      if (room.game.inventory[room.game.playerOrder[i]].loot.indexOf("Keycard") !== -1){
+        keycardingame = true
+        playerwithkeycard = room.game.playerOrder[i]
+        break
+      }
+    }
+
+    if(keycardingame){
+      if(room.game.playerPositions[playerwithkeycard].floor !== activeFloorIdx || room.game.playerPositions[playerwithkeycard].tileIdx !== tIdx){
+        return
+      }
+    }
+
     if (fixDices.length === 0)
       if(!await this.useActionPoint(room.game, 1)) return;
 
@@ -1576,6 +1735,14 @@ export class RoomPageComponent implements AfterViewInit {
     if (!game) return;
 
     game.inventory[player].loot.push(game.loots[0])
+
+    if (game.loots[0] === "Goblet"){
+      game.healths[player] = (game.healths[player] || 1) - 1;
+    }
+    if (game.loots[0] === "Gold"){
+      game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].gold = true
+    }
+
     game.loots = game.loots.splice(1);
 
     if(game.loots.length === 0){
@@ -1593,6 +1760,9 @@ export class RoomPageComponent implements AfterViewInit {
     if(game.events.length === 0){
       game.events = this.shuffle([...eventList])
     }
+
+    console.log(eventName)
+
     await this.roomService.setGameState(this.roomId, game);
   }
 
@@ -1601,7 +1771,8 @@ export class RoomPageComponent implements AfterViewInit {
   isInvisible = false
   protected async toolClick(room: Room, tool: string) {
     if (!room.game) return;
-    if (this.isSpectator(room) || !this.isMyTurn(room)) return
+    if (this.isSpectator(room) || !this.isMyTurn(room) || room.game.inventory[this.playerName].loot.indexOf("Bust") !== -1) return
+    console.log(room.game.inventory[this.playerName].loot.indexOf("Bust"))
     const ok = confirm(`Biztos elhasználod: ${tool}?`);
     if (!ok) return;
 

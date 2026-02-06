@@ -132,6 +132,8 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
       stealthtoken: type === 'Toilet' ? 3 : 0,
       thermalStairsUp: false,
       thermalStairsDown: false,
+      cat: false,
+      gold: false,
     });
   }
 
