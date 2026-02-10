@@ -95,6 +95,7 @@ export function generateGame(seed: string): GameState {
     emp: "",
     timelock: "",
     cameraloop: "",
+    gymnastics: ""
   };
 }
 
@@ -131,6 +132,7 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
       tokens: 0,
       number: Math.floor(random() * 6) + 1,
       cracked: false,
+      empty: false,
       stealthtoken: type === 'Toilet' ? 3 : 0,
       thermalStairsUp: false,
       thermalStairsDown: false,

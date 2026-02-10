@@ -294,6 +294,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <div>{{ room.game?.emp === "" ? "" : "EMP aktív! Nincs alarm!" }}</div>
                 <div>{{ room.game?.timelock === "" ? "" : "Time lock aktív! Nincs lépcső!" }}</div>
                 <div>{{ room.game?.cameraloop === "" ? "" : "Video loop aktív! Nincsenek kamerák!" }}</div>
+                <div>{{ room.game?.gymnastics === "" ? "" : "Gymnastics aktív! Walkway=lépcső!" }}</div>
 
 
                 <div class="dice-container panel-dice">
@@ -358,11 +359,13 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
           <form method="dialog">
             <div class="dialog-body" >
               <p class="ap-dialog">Mit szeretnél csinálni?</p>
-
+              <select id="choice-select" class="form-select" hidden></select>
               <button id="choice-1" class="btn btn-success" value="1">1</button>
               <button id="choice-2" class="btn btn-success" value="2">2</button>
               <button id="choice-3" class="btn btn-success" value="3">3</button>
               <button id="choice-4" class="btn btn-success" value="4" hidden>4</button>
+              <button id="choice-5" class="btn btn-success" value="5" hidden>5</button>
+              <button id="choice-6" class="btn btn-success" value="6" hidden>6</button>
               <button id="choice-cancel" class="btn btn-danger" value="Cancel">Mégse</button>
             </div>
           </form>
@@ -725,10 +728,16 @@ export class RoomPageComponent implements AfterViewInit {
     if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
 
     if (dir === 'floorUp') {
-      return fIdx < 2 && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp) && room.game.timelock === "";
+      return fIdx < 2
+        && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp
+        || ((room.game.gymnastics !== "" && room.game.floors[fIdx].tiles[tIdx].type === 'Walkway')))
+        && room.game.timelock === "";
     }
     if (dir === 'floorDown') {
-      return fIdx > 0 && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway' || room.game.floors[fIdx].tiles[tIdx].thermalStairsDown) && room.game.timelock === "";
+      return fIdx > 0
+        && (room.game.floors[fIdx - 1].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].type === 'Walkway' || room.game.floors[fIdx].tiles[tIdx].thermalStairsDown
+        ||((room.game.gymnastics !== "" && room.game.floors[fIdx - 1].tiles[tIdx].type === 'Walkway')))
+        && room.game.timelock === "";
     }
 
     let targetIdx = this.calcTargetIdx(tIdx, dir);
@@ -763,11 +772,23 @@ export class RoomPageComponent implements AfterViewInit {
     if (tIdx === myPos.tileIdx) {
       // Felmenetel
       if (fIdx === myPos.floor + 1) {
-        return (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs' && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)) || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsUp;
+        return (
+            room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Stairs'
+            && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)
+          )
+          || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed)
+          || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsUp
+          || (room.game.gymnastics !== "" && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Walkway');
       }
       // Lemenetel
       if (fIdx === myPos.floor - 1) {
-        return (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)) || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed) || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsDown;
+        return (
+          room.game.floors[fIdx].tiles[tIdx].type === 'Stairs'
+          && (room.game.timelock === "" || !room.game.floors[fIdx].tiles[tIdx].revealed)
+        )
+          || (room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'Atrium' && !room.game.floors[fIdx].tiles[tIdx].revealed)
+          || room.game.floors[myPos.floor].tiles[myPos.tileIdx].thermalStairsDown
+          || (room.game.gymnastics !== "" && room.game.floors[fIdx].tiles[tIdx].type === 'Walkway');
       }
     }
 
@@ -842,9 +863,7 @@ export class RoomPageComponent implements AfterViewInit {
     const myPos = room.game.playerPositions?.[name];
     if (!myPos) return;
 
-    console.log(dir)
     if (dir === 'floorUp' || dir === 'floorDown') {
-      console.log(this.canMove(room, myPos.floor, myPos.tileIdx, dir))
       if (this.canMove(room, myPos.floor, myPos.tileIdx, dir)) {
         const targetFloor = dir === 'floorUp' ? myPos.floor + 1 : myPos.floor - 1;
         await this.moveToTile(room, targetFloor, myPos.tileIdx);
@@ -894,7 +913,6 @@ export class RoomPageComponent implements AfterViewInit {
   private async moveToTile(room: Room, fIdx: number, tIdx: number) {
     const game: GameState = JSON.parse(JSON.stringify(room.game));
     const name = this.playerName ?? '';
-    let sameFloor = game.playerPositions[name].floor === fIdx;
 
     let occupiedandgemstone = false;
     for (const player in game.playerPositions) {
@@ -995,19 +1013,23 @@ export class RoomPageComponent implements AfterViewInit {
 
     // Őrrel való találkozás ellenőrzése
     let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
-    if (guardIdx === tIdx && sameFloor && !this.isInvisible) {
+    if (guardIdx === tIdx && !this.isInvisible) {
+      if (this.alreadyDamaged.indexOf(name) === -1) {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
         game.healths[name] = (game.healths[name] || 1) - 1;}
-    }
+      this.alreadyDamaged.push(name)
+    }}
 
     if (this.isAdjacent(fIdx, guardIdx, fIdx, tIdx) && (game.floors[fIdx].tiles[tIdx].type === 'Lobby' || game.inventory[this.playerName].loot.indexOf("Tiara") !== -1) && !this.isInvisible){
+      if (this.alreadyDamaged.indexOf(name) === -1) {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
         game.healths[name] = (game.healths[name] || 1) - 1;}
-    }
+      this.alreadyDamaged.push(name)
+    }}
 
     let g1Idx,g2Idx = undefined
     if (fIdx > 0)
@@ -1016,11 +1038,13 @@ export class RoomPageComponent implements AfterViewInit {
       g2Idx = game.guardPositions[fIdx + 1].pos.y * 4 + game.guardPositions[fIdx + 1].pos.x;
 
     if ((tIdx === g1Idx || tIdx === g2Idx) && game.floors[fIdx].tiles[tIdx].type === 'Atrium' && !this.isInvisible) {
+      if (this.alreadyDamaged.indexOf(name) === -1) {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
         game.healths[name] = (game.healths[name] || 1) - 1;}
-    }
+      this.alreadyDamaged.push(name)
+    }}
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Fingerprint')
       this.triggerAlarm(game, "Fingerprint", fIdx, tIdx);
@@ -1037,9 +1061,9 @@ export class RoomPageComponent implements AfterViewInit {
       }
     }
 
-    if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].cracked) {
+    if(game.floors[fIdx].tiles[tIdx].type === 'Laboratory' && !game.floors[fIdx].tiles[tIdx].empty) {
       await this.drawTool(game,this.playerName)
-      game.floors[fIdx].tiles[tIdx].cracked = true;
+      game.floors[fIdx].tiles[tIdx].empty = true;
     }
 
     if(game.floors[fIdx].tiles[tIdx].cat){
@@ -1240,7 +1264,9 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
 // Moves the guard on the given floor, step-by-step, with 1s delay per step
+  alreadyDamaged: string[] = []
   private async moveGuardWithDelay(game: GameState, floorIdx: number) {
+    this.animatation = true
     const guardIdx = game.guardPositions.findIndex(g => g.floor === floorIdx);
     if (guardIdx === -1) return;
 
@@ -1253,15 +1279,64 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     if(guard.target.x === guard.pos.x && guard.target.y === guard.pos.y) {
-      guard.target = {x: 0, y: 0}
-      guard.pos = {x:1, y:1}
+      if (game.floors[floorIdx].alarms.length > 0) {
+        this.checkClosestAlarm(game, guard, floorIdx, guardIdx);
+    } else {
+      // 2) Nincs alarm: patrol target a moves-ból
+      if (!guard.moves || guard.moves.length === 0) {
+        this.generateNewGuardTargets(guard);
+      }
+
+      // válassz olyan move-ot, ami NEM az aktuális pozíció
+      const next = guard.moves.find(m => m.x !== guard.pos.x || m.y !== guard.pos.y);
+
+      if (next) {
+        guard.target = { x: next.x, y: next.y };
+      } else {
+        // nagyon szélsőséges eset: minden moves elem ugyanoda mutat -> újrakeverés
+        this.generateNewGuardTargets(guard);
+        let nextnext = guard.moves.find(m => m.x !== guard.pos.x || m.y !== guard.pos.y)
+        if (nextnext)
+        guard.target = nextnext;
+      }
     }
+
+  }
 
     let path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
 
     const gspeed = guard.speed + game.floors[floorIdx].alarms.length + this.espresso
     this.espresso = 0
     for (let i = 1; i <= gspeed; i++) {
+        if (!path || path.length < 2) {
+
+          // ha pont alarmon áll, vegyük le (különben ragadhat)
+          const curIdx = guard.pos.y * 4 + guard.pos.x;
+          if (game.floors[floorIdx].alarms.includes(curIdx)) {
+            game.floors[floorIdx].alarms = game.floors[floorIdx].alarms.filter(a => a !== curIdx);
+          }
+
+          if (game.floors[floorIdx].alarms.length > 0) {
+            this.checkClosestAlarm(game, guard, floorIdx, guardIdx);
+          } else {
+            if (!guard.moves || guard.moves.length === 0) {
+              this.generateNewGuardTargets(guard);
+            }
+            const next = guard.moves.find(m => m.x !== guard.pos.x || m.y !== guard.pos.y);
+            if (next) {
+              guard.target = { x: next.x, y: next.y };
+            } else {
+              this.generateNewGuardTargets(guard);
+              guard.target = { x: guard.moves[0].x, y: guard.moves[0].y };
+            }
+          }
+
+          path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
+
+          // ha továbbra sincs értelmes lépés, nincs hova menni
+          if (!path || path.length < 2) break;
+        }
+
       const nextIdx = path[1];
       path = path.splice(1);
       if (path.length === 1) {
@@ -1305,18 +1380,22 @@ export class RoomPageComponent implements AfterViewInit {
 
       for (const player of game.playerPositions ? Object.keys(game.playerPositions) : []) {
         if (game.playerPositions[player].floor === floorIdx && game.playerPositions[player].tileIdx === nextIdx) {
+          if (this.alreadyDamaged.indexOf(player) === -1) {
           if (game.floors[floorIdx].tiles[nextIdx].stealthtoken>0) {
             game.floors[floorIdx].tiles[nextIdx].stealthtoken --;
           }else {
             game.healths[player] = (game.healths[player] || 1) - 1;}
-        }
+          this.alreadyDamaged.push(this.playerName)
+        }}
 
         if ((game.playerPositions[player].floor === floorIdx - 1 || game.playerPositions[player].floor === floorIdx + 1) && game.playerPositions[player].tileIdx === nextIdx && game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Atrium') {
+          if (this.alreadyDamaged.indexOf(player) === -1) {
           if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
             game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
           }else {
             game.healths[player] = (game.healths[player] || 1) - 1;}
-        }
+          this.alreadyDamaged.push(player)
+        }}
 
         if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby' || game.inventory[player].loot.indexOf("Tiara") !== -1){
           if (this.isAdjacent(game.playerPositions[player].floor, game.playerPositions[player].tileIdx, floorIdx, nextIdx)) {
@@ -1331,11 +1410,13 @@ export class RoomPageComponent implements AfterViewInit {
               if (!(((x1 < x2) && (tile1.walls.right || tile2.walls.left)) || ((x1 > x2) && (tile1.walls.left || tile2.walls.right))
                 || ((y1 < y2) && (tile1.walls.bottom || tile2.walls.top)) || ((y1 > y2) && (tile1.walls.top || tile2.walls.bottom)))
               ) {
+                if (this.alreadyDamaged.indexOf(player) === -1) {
                 if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
                   game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
                 }else {
                   game.healths[player] = (game.healths[player] || 1) - 1;}
-            }
+                this.alreadyDamaged.push(player)
+            }}
           }
         }
       }
@@ -1344,6 +1425,8 @@ export class RoomPageComponent implements AfterViewInit {
       await new Promise(res => setTimeout(res, 2000/guard.speed)); // delay based on speed
       path = this.getGuardPath({ game } as Room, floorIdx, guardIdx);
     }
+
+    this.animatation = false
   }
 
   protected isMyTurn(room: Room): boolean {
@@ -1352,6 +1435,7 @@ export class RoomPageComponent implements AfterViewInit {
 
   async endTurn(room: Room) {
     this.diceValues = [0,0,0,0,0,0];
+    this.alreadyDamaged = []
     if (!room.game || !this.isMyTurn(room)) return;
     const game: GameState = JSON.parse(JSON.stringify(room.game));
 
@@ -1385,6 +1469,8 @@ export class RoomPageComponent implements AfterViewInit {
       else
         this.shiftchange = 0
     }
+
+    this.alreadyDamaged = []
 
     for (let i = 0; i < game.keypads.length; i++) {
       game.keypads[i].tries = 0;
@@ -1421,6 +1507,9 @@ export class RoomPageComponent implements AfterViewInit {
     }
     if (game.cameraloop === game.playerOrder[game.currentPlayerIdx]){
       game.cameraloop = ""
+    }
+    if (game.gymnastics === game.playerOrder[game.currentPlayerIdx]){
+      game.gymnastics = ""
     }
 
     if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
@@ -1817,8 +1906,6 @@ export class RoomPageComponent implements AfterViewInit {
 
     await this.askEventAcknowledge(eventName)
 
-    console.log(eventName)
-
     if (eventName === "Espresso"){
       this.espresso = 1
     }
@@ -1856,7 +1943,7 @@ export class RoomPageComponent implements AfterViewInit {
     if (eventName === "Shoplifting"){
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 16; j++) {
-          if (game.floors[i].tiles[j].type === "Laboratory" && game.floors[i].tiles[j].cracked)
+          if (game.floors[i].tiles[j].type === "Laboratory" && game.floors[i].tiles[j].empty)
             this.triggerAlarm(game, "Shoplifting", i, j)
         }
       }
@@ -1922,22 +2009,350 @@ export class RoomPageComponent implements AfterViewInit {
     }
     if (eventName === "ShiftChange") {
       this.shiftchange = 1
+      this.animatation = true
       if(game.playerPositions[this.playerName].floor !== 0)
         await this.moveGuardWithDelay(game, 0)
       if(game.playerPositions[this.playerName].floor !== 1)
         await this.moveGuardWithDelay(game, 1)
       if(game.playerPositions[this.playerName].floor !== 2)
         await this.moveGuardWithDelay(game, 2)
+      this.animatation = false
     }
-    if (eventName === "") {
+    if (eventName === "ThrowVoice") {
+
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+      const choice4 = document.getElementById("choice-4") as HTMLDialogElement;
+      const closebtn = document.getElementById("choice-cancel") as HTMLDialogElement
+
+      let playerFloor = game.playerPositions[this.playerName].floor
+      if (game.floors[playerFloor].alarms.length === 0){
+      let guardIdx = game.guardPositions[playerFloor].pos.y * 4 + game.guardPositions[playerFloor].pos.x
+
+      if (!game.floors[playerFloor].tiles[guardIdx].walls.top)
+        choice1.innerText = "Up"
+      else
+        choice1.hidden = true
+      if (!game.floors[playerFloor].tiles[guardIdx].walls.right)
+          choice2.innerText = "Right"
+      else
+        choice2.hidden = true
+      if (!game.floors[playerFloor].tiles[guardIdx].walls.bottom)
+          choice3.innerText = "Down"
+      else
+        choice3.hidden = true
+      if (!game.floors[playerFloor].tiles[guardIdx].walls.left){
+          choice4.innerText = "Left"
+          choice4.hidden = false}
+      else
+        choice4.hidden = true
+
+        closebtn.hidden = true
+
+      this.animatation = true
+
+        dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.showModal();
+        const choice = await new Promise<string>((resolve) => {
+          dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
+        });
+
+        if (choice === "1") {
+          game.guardPositions[playerFloor].pos.y -= 1
+        }
+        if (choice === "2") {
+          game.guardPositions[playerFloor].pos.x += 1
+        }
+        if (choice === "3") {
+          game.guardPositions[playerFloor].pos.y += 1
+        }
+        if (choice === "4") {
+          game.guardPositions[playerFloor].pos.x -= 1
+        }
+
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
+        choice4.hidden = true
+        closebtn.hidden = false
+
+        await this.roomService.setGameState(this.roomId, game);
+      }
+    }
+    if (eventName === "Peekhole") {
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+      const choice4 = document.getElementById("choice-4") as HTMLDialogElement;
+      const choice5 = document.getElementById("choice-5") as HTMLDialogElement;
+      const choice6 = document.getElementById("choice-6") as HTMLDialogElement;
+      const closebtn = document.getElementById("choice-cancel") as HTMLDialogElement
+
+        if (game.playerPositions[this.playerName].tileIdx > 3 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed)
+          choice1.innerText = "Up"
+        else
+          choice1.hidden = true
+        if (game.playerPositions[this.playerName].tileIdx % 4 !== 3 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed)
+          choice2.innerText = "Right"
+        else
+          choice2.hidden = true
+        if (game.playerPositions[this.playerName].tileIdx < 12 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed)
+          choice3.innerText = "Down"
+        else
+          choice3.hidden = true
+        if (game.playerPositions[this.playerName].tileIdx % 4 !== 0 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed){
+          choice4.innerText = "Left"
+          choice4.hidden = false}
+        else
+          choice4.hidden = true
+      if (game.playerPositions[this.playerName].floor < 2 && !game.floors[game.playerPositions[this.playerName].floor + 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed)
+      {choice5.hidden = false
+        choice5.innerText = "Upstairs"}
+      else
+        choice5.hidden = true
+      if (game.playerPositions[this.playerName].floor > 0 && !game.floors[game.playerPositions[this.playerName].floor - 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed)
+      {choice6.hidden = false
+        choice6.innerText = "Downstairs"}
+      else
+        choice6.hidden = true
+
+      closebtn.hidden = true
+
+      this.animatation = true
+
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
+      });
+
+      if (choice === "1") {
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed = true
+      }
+      if (choice === "2") {
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed = true
+      }
+      if (choice === "3") {
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed = true
+      }
+      if (choice === "4") {
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed = true
+      }
+      if (choice === "5") {
+        game.floors[game.playerPositions[this.playerName].floor + 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
+      }
+      if (choice === "6") {
+        game.floors[game.playerPositions[this.playerName].floor - 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
+      }
+
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      choice4.hidden = true
+      choice5.hidden = true
+      choice6.hidden = true
+      closebtn.hidden = false
+
+
+      await this.roomService.setGameState(this.roomId, game);
+    }
+    if (eventName === "GoWithYourGut") {
+
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+      const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+      const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+      const choice4 = document.getElementById("choice-4") as HTMLDialogElement;
+      const closebtn = document.getElementById("choice-cancel") as HTMLDialogElement
+
+
+      if (game.playerPositions[this.playerName].tileIdx > 3 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed)
+        choice1.innerText = "Up"
+      else
+        choice1.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 3 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed)
+        choice2.innerText = "Right"
+      else
+        choice2.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx < 12 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed)
+        choice3.innerText = "Down"
+      else
+        choice3.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 0 && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed){
+        choice4.innerText = "Left"
+        choice4.hidden = false}
+      else
+        choice4.hidden = true
+
+      closebtn.hidden = true
+
+      this.animatation = true
+
+      if (!choice1.hidden || !choice2.hidden || !choice3.hidden || !choice4.hidden){
+        dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.showModal();
+        const choice = await new Promise<string>((resolve) => {
+          dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
+        });
+
+        if (choice === "1") {
+          game.playerPositions[this.playerName].tileIdx -= 4
+        }
+        if (choice === "2") {
+          game.playerPositions[this.playerName].tileIdx += 1
+        }
+        if (choice === "3") {
+          game.playerPositions[this.playerName].tileIdx += 4
+        }
+        if (choice === "4") {
+          game.playerPositions[this.playerName].tileIdx -= 1
+        }
+        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
+      }
+
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      choice4.hidden = true
+      closebtn.hidden = false
+
+      await this.roomService.setGameState(this.roomId, game);
 
     }
-    if (eventName === "") {
+    if (eventName === "BuddySystem") {
 
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+
+      const choice1 = document.getElementById("choice-1") as HTMLButtonElement;
+      const choice2 = document.getElementById("choice-2") as HTMLButtonElement;
+      const choice3 = document.getElementById("choice-3") as HTMLButtonElement;
+      const choice4 = document.getElementById("choice-4") as HTMLButtonElement;
+      const cancelBtn = document.getElementById("choice-cancel") as HTMLButtonElement;
+
+      const select = document.getElementById("choice-select") as HTMLSelectElement | null;
+
+      if (!select) {
+        console.warn("choice-select nincs a DOM-ban (BuddySystemhez kell).");
+      } else {
+        // 1) eligible játékosok (akiknek van pozíciójuk, és nem te vagy)
+        const myPos = game.playerPositions?.[this.playerName];
+        if (!myPos) return;
+
+        const eligible = game.playerOrder
+          .filter(p => p !== this.playerName)
+          .filter(p => game.playerPositions?.[p] !== undefined);
+
+        if (eligible.length === 0) {
+          // nincs kit mozgatni
+          return;
+        }
+
+        // 2) dropdown feltöltése
+        select.innerHTML = "";
+        for (const p of eligible) {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p;
+          select.appendChild(opt);
+        }
+        select.hidden = false;
+
+        // 3) csak a dropdown + egy OK gomb látszódjon
+
+        choice1.hidden = false;
+        choice1.textContent = "OK";
+        choice2.hidden = true;
+        choice3.hidden = true;
+        choice4.hidden = true;
+        cancelBtn.hidden = true;
+
+        // 4) lock + kötelező választás (ESC ne zárja)
+        this.animatation = true;
+        dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.showModal();
+        await new Promise<void>((resolve) => {
+          dialog.addEventListener("close", () => resolve(), { once: true });
+        });
+
+        // 5) kiválasztott player
+        const pickedPlayer = select.value;
+
+        const f = myPos.floor;
+        const t = myPos.tileIdx;
+
+        game.playerPositions[pickedPlayer] = { floor: f, tileIdx: t };
+
+        // 7) cleanup: állíts vissza mindent
+        this.animatation = false;
+
+        select.hidden = true;
+        select.innerHTML = "";
+
+        choice1.hidden = false;
+        choice2.hidden = false;
+        choice3.hidden = false;
+        choice4.hidden = true;
+        cancelBtn.hidden = false;
+      }
+
+        }
+    if (eventName === "Squeak") {
+
+      const myPos = game.playerPositions?.[this.playerName];
+      if (!myPos) return;
+
+      const floorIdx = myPos.floor;
+      const floor = game.floors[floorIdx];
+      const guard = game.guardPositions.find(g => g.floor === floorIdx);
+      if (!guard) return;
+
+      const startIdx = guard.pos.y * 4 + guard.pos.x;
+
+      // játékosok ezen a szinten
+      const playersOnFloor = Object.entries(game.playerPositions)
+        .filter(([, pos]) => pos.floor === floorIdx)
+        .map(([name, pos]) => ({ name, tileIdx: pos.tileIdx }));
+
+      if (playersOnFloor.length === 0) return;
+
+      // legközelebbi játékos keresése BFS path hosszal
+      let bestPath: number[] | null = null;
+
+      for (const p of playersOnFloor) {
+        const pPath = this.shortestPathLikeGuard(floor.tiles, startIdx, p.tileIdx);
+        if (!pPath) continue;
+        if (!bestPath || pPath.length < bestPath.length) bestPath = pPath;
+      }
+
+      if (!bestPath || bestPath.length < 2) return;
+
+      const nextIdx = bestPath[1];
+
+      // 1 lépés
+      guard.pos = { x: nextIdx % 4, y: Math.floor(nextIdx / 4) };
+
+      // ha játékoson landol: stealthtoken csökkent vagy sebzés (egyszerűsített)
+      for (const [pName, pPos] of Object.entries(game.playerPositions)) {
+        if (pPos.floor === floorIdx && pPos.tileIdx === nextIdx) {
+          if (floor.tiles[nextIdx].stealthtoken > 0) {
+            floor.tiles[nextIdx].stealthtoken--;
+          } else {
+            game.healths[pName] = (game.healths[pName] ?? 0) - 1;
+          }
+          this.alreadyDamaged.push(pName)
+        }
+      }
+    }
+    if (eventName === "Gymnastics") {
+      game.gymnastics = this.playerName;
     }
 
-    //   'ThrowVoice', 'Peekhole', 'GoWithYourGut', 'KeycodeChange', '', '', 'BuddySystem', 'Squeak', 'Gymnastics',
-    //   '', '', '', '', '', '', '', ''
     await this.roomService.setGameState(this.roomId, game);
   }
 
@@ -1975,7 +2390,6 @@ export class RoomPageComponent implements AfterViewInit {
   protected async toolClick(room: Room, tool: string) {
     if (!room.game) return;
     if (this.isSpectator(room) || !this.isMyTurn(room) || room.game.inventory[this.playerName].loot.indexOf("Bust") !== -1) return
-    console.log(room.game.inventory[this.playerName].loot.indexOf("Bust"))
     const ok = confirm(`Biztos elhasználod: ${tool}?`);
     if (!ok) return;
 
@@ -2016,6 +2430,7 @@ export class RoomPageComponent implements AfterViewInit {
       choice2.innerText = "Laser"
       choice3.innerText = "Fingerprint"
       this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2103,6 +2518,7 @@ export class RoomPageComponent implements AfterViewInit {
         choice2.innerText = "Le"
         choice3.hidden = true
         this.animatation = true
+        dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
         dialog.showModal();
 
         dialog.onclose = async () => {
@@ -2143,6 +2559,7 @@ export class RoomPageComponent implements AfterViewInit {
       choice2.innerText = "2. Szint"
       choice3.innerText = "3. Szint"
       this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2199,6 +2616,7 @@ export class RoomPageComponent implements AfterViewInit {
       else
         choice3.hidden = true
       this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2280,6 +2698,7 @@ export class RoomPageComponent implements AfterViewInit {
 
 
       this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
       dialog.showModal();
 
       dialog.onclose = async () => {

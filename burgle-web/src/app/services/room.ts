@@ -24,6 +24,7 @@ export interface Tile {
   tokens: number; // pl. alarm, hack, etc.
   number: number; // 1-6
   cracked: boolean;
+  empty: boolean;
   stealthtoken: number;
   thermalStairsUp: boolean;
   thermalStairsDown: boolean;
@@ -64,6 +65,7 @@ export interface GameState {
   emp: string;
   timelock: string;
   cameraloop: string;
+  gymnastics: string;
 }
 
 export type Room = {
