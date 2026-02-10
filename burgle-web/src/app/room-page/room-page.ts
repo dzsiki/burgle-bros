@@ -38,7 +38,24 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
               }
             </div>
 
-            <div class="detail-item players-item">
+            <div class="floorToggle">
+            <span class="lbl">2</span>
+
+            <label class="switch">
+              <input
+                type="checkbox"
+                [checked]="(room.floorCount ?? 3) === 3"
+                [disabled]="room.phase !== 'lobby'"
+                (change)="onFloorCountToggle($event, room)"
+              />
+              <span class="slider"></span>
+            </label>
+
+            <span class="lbl">3</span>
+          </div>
+
+
+          <div class="detail-item players-item">
               <span class="label">Játékosok:</span>
               <div class="player-chips">
                 @for (p of room.players; track p) {
@@ -666,8 +683,16 @@ export class RoomPageComponent implements AfterViewInit {
     return !room.players?.includes(this.playerName ?? '');
   }
 
+  async onFloorCountToggle(event: Event, room: Room) {
+    if (room.phase !== 'lobby') return;
+    const checked = (event.target as HTMLInputElement).checked;
+    const floorCount: 2 | 3 = checked ? 3 : 2;
+    await this.roomService.updateFloorCount(this.roomId, floorCount);
+  }
+
   async start(room: Room) {
-    const game = generateGame(room.seed);
+    const floorCount = (room.floorCount ?? 3) as 2 | 3;
+    const game = generateGame(room.seed, floorCount);
 
     for (let i = 0; i < this.seed.length; i++) {
       this.seednum = ((this.seednum << 5) - this.seednum) + this.seed.charCodeAt(i);

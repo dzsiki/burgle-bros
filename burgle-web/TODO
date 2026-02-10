@@ -1,3 +1,28 @@
+Profilon szekrény a lootal
+
+LOSE screen
+WIN screen
+
+Characters:
+'ACROBAT': You may move into a tile with a guard as a free action (multiple times per turn) and will not lose a stealth token if you leave the tile before the guard moves (meaning you leave the tile with the guard before ending your turn to not lose stealth).
+  / If you are on a perimeter tile (or next to the empty tile in Fort Knox) you may spend 3 actions to move up or down one floor to the corresponding tile, all movement rules for trying to enter a tile still apply, doing so consumes all your actions.
+'HACKER': You do not trigger fingerprint, laser, or motion tiles and other players will not trigger those tiles if you are there. The ability is not optional and does not apply to detector and thermo tiles.
+  / You can add a hack token to yourself as an action. This token can be used as a fingerprint, laser or motion hack token by any player. You can only store up to one hack token on yourself.
+'HAWK': As a free action, once per turn, you can peek through an adjacent wall to reveal a tile.
+  / As a free action, once per turn, you may peek at a tile up to two spaces away. You cannot skip over unrevealed tiles and you cannot see through walls but you can use the ability to peek around corners and peek up stairs.
+'JUICER': As a free action (multiple times per turn), you may trigger an alarm on an adjacent tile, but not through walls. Note - you cannot trigger an alarm on a hidden tile or a tile with a guard on it.
+  / As a free action, once per turn, you may pick up an active alarm on your tile and draw a new patrol card, or discard one of your alarm tokens to trigger an alarm.
+'PETERMAN': Roll 1 additional die when rolling for the safe or keypad.
+  / You may add dice and roll on safes above or below your tile. However, you're unable to loot safes from another floor, so the loot remains in the safe until retrieved. Do note that all loot must be carried up to the roof to end and win the game.
+'RAVEN': As a free action, you may place the crow up to two tiles away from your character but not through walls. The crow remains in that location until you move it again. The guard loses an move each time he enters the crow's tile (so a crow placed on the guard's tile won't affect the guard until a subsequent move into said tile.)
+  / As a free action, you may place the crow on your current tile. If the guard starts his movement on the same tile as the crow and there are no alarms, he loses all movement and the crow is returned to you.
+'RIGGER': You start with the dynamite tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
+  / You can lose one Stealth token to draw a Tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
+'ROOK': As an action, once per turn, you may move another player one tile (the other player gets to confirm the move). When moving the other player, lasers and deadbolts do not cost extra actions but otherwise all normal movement rules, such as alarm tiles and rolling for locked keypads, apply.
+  / You may spend your first action swapping places with any player. This does not count as entering the tile for either of you. Please note that the disguise action is only available as the first action and other actions, even free, such as tool use executed first would consume the opportunity to make use of the disguise action.
+'SPOTTER': As an action, once per turn, you may look at the top card of the patrol deck for your floor. Then choose to place it on the top or bottom of the deck.
+  / As an action, once per turn, you may look at the top card of the event deck. Then choose to place it on the top or bottom of the deck.
+
 Lobby nem működik ha én lépek bele ✔
 Atrium se ✔
 
@@ -87,9 +112,3 @@ jump the gun: skip next player's turn ✔
 jury-rig: draw a tool ✔
 freight elevator: move up 1 floor ✔
 where is he?: guard jump to current destination ✔
-
-
-
-
-
-Profilon szekrény a lootal

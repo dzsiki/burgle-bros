@@ -26,7 +26,7 @@ export const eventList: string[] = [
   'ShiftChange', 'SwitchSigns', 'LostGrip', 'DayDreaming', 'JumpTheGun', 'Jury-rig', 'FreightElevator', 'WhereIsHe']
 
 
-export function generateGame(seed: string): GameState {
+export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
   // Egy nagyon egyszerű determinisztikus véletlenszám-generátor a seed alapján
   let seedNum = 0;
   for (let i = 0; i < seed.length; i++) {

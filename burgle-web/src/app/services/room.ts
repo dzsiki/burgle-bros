@@ -74,6 +74,7 @@ export type Room = {
   seed: string;
   players: string[];
   game?: GameState;
+  floorCount: 2 | 3;
 };
 
 export const ROOM_NAME_MAP: Record<string, string> = {
@@ -141,6 +142,16 @@ export class RoomService {
       updatedAt: Date.now(),
     });
   }
+
+
+  async updateFloorCount(roomId: string, floorCount: 2 | 3) {
+    const ref = doc(this.fs, `Rooms/${roomId}`);
+    await updateDoc(ref, {
+      floorCount: floorCount,
+      updatedAt: Date.now(),
+    });
+  }
+
 
   async resetRoom(roomId: string, newSeed: string) {
     const ref = doc(this.fs, `Rooms/${roomId}`);
