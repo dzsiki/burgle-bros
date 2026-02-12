@@ -1,7 +1,7 @@
 import {Component, inject, HostListener, ChangeDetectorRef, ViewChild, ElementRef, AfterViewInit} from '@angular/core';
 import {AsyncPipe, NgOptimizedImage} from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import {RoomService, Room, GameState, getRoomDisplayName, Tile} from '../services/room';
+import {RoomService, Room, GameState, getRoomDisplayName, Tile, Characters} from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
 import {eventList, generateGame, lootList, toolsList} from '../services/game-generator';
@@ -14,6 +14,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
   imports: [AsyncPipe, NgOptimizedImage, DragDropModule],
   template: `
     @if (room$ | async; as room) {
+      <!--suppress ALL -->
       <div class="viewport">
       <div class="app-root" #appRoot>
       <div class="header-bar">
@@ -92,6 +93,87 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
         </div>
       </div>
 
+        @if (showCharacterDialog && needsCharacter(room)) {
+          <div class="modal-backdrop" style="position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="modal-card" style="background:#111; color:#fff; padding:24px; border-radius:14px; width:min(900px, 92vw); box-shadow:0 10px 40px rgba(0,0,0,.5);">
+              <h3 style="margin:0 0 8px;">Válassz karaktert</h3>
+              <p style="margin:0 0 16px; opacity:.9;">
+                A köröd csak ezután indul – amíg nem választasz, nem tudsz lépni.
+              </p>
+
+              <!-- vízszintes, 1 soros, húzható karakter-sáv -->
+              <div style=" display:flex;flex-wrap:nowrap;gap:16px;overflow-x:auto;overflow-y:hidden;padding:6px 6px 14px;
+                      -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;scrollbar-width:thin;">
+                @for (c of characterList; track c) {
+                  @let imgUrl = getOrLoadTileImage('character-' + c);
+
+                  <button
+                    (click)="selectCharacter(room, c)"
+                    [disabled]="isCharacterTaken(room, c)"
+                    style="
+                            flex:0 0 auto;
+                            width:300px;
+                            padding:14px;
+                            border-radius:16px;
+                            border:1px solid rgba(255,255,255,.22);
+                            background:#1b1b1b;
+                            color:#fff;
+                            cursor:pointer;
+                            display:flex;
+                            flex-direction:column;
+                            align-items:center;
+                            gap:12px;
+                            scroll-snap-align:start;
+                            transition:transform .08s ease;
+      "
+                    [style.opacity]="isCharacterTaken(room, c) ? '0.45' : '1'"
+                    [style.cursor]="isCharacterTaken(room, c) ? 'not-allowed' : 'pointer'"
+                    title="{{ isCharacterTaken(room, c) ? 'Foglalt' : 'Választás' }}"
+                  >
+                    @if (imgUrl) {
+                      <img
+                        [ngSrc]="imgUrl"
+                        width="190"
+                        height="190"
+                        style="
+            width:275px;
+            height:275px;
+            border-radius:14px;
+            background:#0f0f0f;
+            object-fit:contain;
+          "
+                        alt="character {{c}}"
+                      />
+                    } @else {
+                      <div
+                        style="
+            width:190px;
+            height:190px;
+            border-radius:14px;
+            background:#0f0f0f;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            opacity:.85;
+            font-size:28px;
+          "
+                      >
+                        ?
+                      </div>
+                    }
+
+                    <div style="text-align:center; line-height:1.1;">
+                      @if (isCharacterTaken(room, c)) {
+                        <div style="font-weight:500; opacity:.85; margin-top:4px;">(foglalt)</div>
+                      }
+                    </div>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
       <div class="main-content">
         @if (room.phase === 'lobby') {
           <div class="lobby-start">
@@ -118,8 +200,10 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     <span class="tile-type">{{tool}}</span>
                   }
                 }
-                  <button class="scroll-btn scroll-up" (click)="this.lootToolIndex= Math.max(0, this.lootToolIndex-1)">▲</button>
-                  <button class="scroll-btn scroll-down" (click)="this.lootToolIndex= Math.min((room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3 ,this.lootToolIndex + 1)">▼</button>
+                @if (this.lootToolIndex > 0){
+                  <button class="scroll-btn scroll-up" (click)="this.lootToolIndex= Math.max(0, this.lootToolIndex-1)">▲</button>}
+                @if (this.lootToolIndex < (room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3) {
+                  <button class="scroll-btn scroll-down" (click)="this.lootToolIndex= Math.min((room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3 ,this.lootToolIndex + 1)">▼</button>}
                 </div>
             </div>
             <div class="game-area">
@@ -127,7 +211,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <div class="floor-navigation">
                   <button class="nav-btn" [disabled]="activeFloorIdx === 0" (click)="changeFloor(-1)">◀</button>
                   <div class="floor-indicator">{{ activeFloorIdx + 1 }}. szint</div>
-                  <button class="nav-btn" [disabled]="activeFloorIdx === 2" (click)="changeFloor(1)">▶</button>
+                  <button class="nav-btn" [disabled]="activeFloorIdx === (floorCount - 1)" (click)="changeFloor(1)">▶</button>
                 </div>
 
                 <div class="floors-container">
@@ -176,8 +260,8 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                           @if (((activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs') || tile.thermalStairsDown || tile.type === 'Walkway') && tile.revealed) {
                             <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
                           }
-                          @if (((activeFloorIdx < 3 && room.game.floors[activeFloorIdx].tiles[tIdx].type === 'Stairs') || tile.thermalStairsUp) && tile.revealed) {
-                            <div class="down-exit-mark" title="Lejárat az alsó szintről">▲</div>
+                          @if (((room.game.floors[activeFloorIdx].tiles[tIdx].type === 'Stairs') || tile.thermalStairsUp) && tile.revealed) {
+                            <div class="down-exit-mark" title="Feljárat">▲</div>
                           }
                           @if (tile.revealed && tile.stealthtoken > 0) {
                             <div class="stealthtokennumber" title="Stealthtoken mennyiség">{{ tile.stealthtoken }}</div>
@@ -303,22 +387,73 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
             </div>
             <div class="side-panel-right">
               <div class="hacks panel-top">
-                <div>Motion hacks:  {{ room.game?.hackMotion }}</div>
-                <div>Laser hacks:   {{ room.game?.hackLaser }}</div>
-                <div>Fingerprint hacks: {{ room.game?.hackFingerprint }}</div>
-                <div>Guard speed: {{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</div>
-                <div>---Aktív eventek---</div>
-                <div>{{ room.game?.emp === "" ? "" : "EMP aktív! Nincs alarm!" }}</div>
-                <div>{{ room.game?.timelock === "" ? "" : "Time lock aktív! Nincs lépcső!" }}</div>
-                <div>{{ room.game?.cameraloop === "" ? "" : "Video loop aktív! Nincsenek kamerák!" }}</div>
-                <div>{{ room.game?.gymnastics === "" ? "" : "Gymnastics aktív! Walkway=lépcső!" }}</div>
 
+                <div class="stats-row">
+                  <span class="label">Motion hacks</span>
+                  <span class="value">{{ room.game?.hackMotion }}</span>
+                </div>
+
+                <div class="stats-row">
+                  <span class="label">Laser hacks</span>
+                  <span class="value">{{ room.game?.hackLaser }}</span>
+                </div>
+
+                <div class="stats-row">
+                  <span class="label">Fingerprint hacks</span>
+                  <span class="value">{{ room.game?.hackFingerprint }}</span>
+                </div>
+
+                <div class="stats-row"></div>
+
+                <div class="stats-row">
+                  <span class="label">Guard speed</span>
+                  <span class="value">{{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</span>
+                </div>
 
                 <div class="dice-container panel-dice">
                   @for (die of diceValues; track $index) {
                     <div class="dice">{{ diceMap[die] }}</div>
                   }
                 </div>
+
+                <div class="separator">--- Aktív eventek ---</div>
+
+                <div class="stats-row">
+                  @if (room.game?.hackHacker === 1) {
+                    <span class="label">Hacker token aktív!</span>
+                    <span class="value">Felhasználható bármelyik hack tokenként!</span>}
+                </div>
+
+                  <div class="stats-row">
+                    @if (room.game?.emp !== "") {
+                    <span class="label">EMP aktív!</span>
+                    <span class="value">Nem működnek a riasztók!</span>}
+                  </div>
+
+
+                  <div class="stats-row">
+                    @if (room.game?.timelock !== "") {
+                    <span class="label">Time lock aktív!</span>
+                    <span class="value">A lépcsők nem használhatóak!</span>}
+                  </div>
+
+
+
+                  <div class="stats-row">
+                    @if (room.game?.cameraloop !== "") {
+                    <span class="label">Video loop aktív!</span>
+                    <span class="value">Nem működnek a kamerák!</span>}
+                  </div>
+
+
+
+                  <div class="stats-row">
+                    @if (room.game?.gymnastics !== "") {
+                    <span class="label">Gymnastics aktív!</span>
+                    <span class="value">Walkway használható lépcsőként!</span>}
+                  </div>
+
+                <div class="stats-row"></div>
 
               </div>
               <div class="panel-middle">
@@ -331,10 +466,29 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     }
                   }
                 </div>
-                <div class="ap-counter">
-                  Action Points: {{ room.game?.currentAP ?? 0 }}
+                <div class="stats-row">
+                  <span class="label">Action Points:</span>
+                  <span class="value">{{ room.game?.currentAP ?? 0 }}</span>
                 </div>
 
+                <div class="char-heat-wrapper">
+
+                  @let myChar = room.game?.playerCharacter?.[playerName];
+                  @if (myChar) {
+                    <div class="character-box">
+                      @let cUrl = getOrLoadTileImage('character-' + myChar);
+                      @if (cUrl) {
+                        <img
+                          class="character-img"
+                          [ngSrc]="cUrl"
+                          width="250"
+                          height="250"
+                          alt="my character {{myChar}}"
+                        />
+                      }
+                    </div>
+                  }
+                  <div class="heatmap-container">
                 <div class="heatmap-grid">
                   @for (v of generateHeatmap((room.game?.floors?.[activeFloorIdx]?.tiles ?? [])); track $index) {
                     <div class="heat-cell" [style.background]="colorFromT(v)"
@@ -345,9 +499,17 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     ></div>
                   }
                 </div>
+                </div>
+                </div>
+
 
               </div>
               <div class="panel-bottom endturnbtn">
+                <button class="btn btn-primary endturnbtn"
+                        [disabled]="!isMyTurn(room) || !canUseCharacterSpell(room)"
+                        (click)="useCharacterSpell(room)">
+                  Use skill
+                </button>
                 <button class="btn btn-primary endturnbtn"
                         [disabled]="!isMyTurn(room)"
                         (click)="endTurn(room)">
@@ -391,13 +553,13 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
         @if (showBlueprintDialog) {
           <div class="overlay">
             <div class="modal">
-              <h4>Blueprint – válassz egy mezőt a felfedéshez</h4>
-              <p>(Kötelező választani: amíg nem választasz, semmi mást nem lehet csinálni.)</p>
+              <h4>{{ blueprintHeaderText }}</h4>
 
               <div class="floorTabs">
                 <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0">1. szint</button>
                 <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1">2. szint</button>
-                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3. szint</button>
+                @if (room.floorCount === 3) {
+                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3. szint</button>}
               </div>
 
               @let floor = room.game?.floors?.[blueprintFloorIdx];
@@ -407,12 +569,12 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     class="cell"
                     (click)="resolveBlueprintTarget(blueprintFloorIdx, tIdx, tile.revealed)"
                     [class.revealed]="tile.revealed"
+                    [disabled]="tile.revealed || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
+                    title="{{ tile.revealed ? tile.type : '?' }}"
+                    [class.hawkCurrent]="(isCurrentPlayerTile(room, blueprintFloorIdx, tIdx) && blueprintAllowedMask !== null)"
+                    [class.bpdisabled]="tile.revealed || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
                   >
-                    @if (tile.revealed) {
-                      {{ tile.type }}
-                    } @else {
-                      ?
-                    }
+                    <span style="font-size:18px;">@if (tile.revealed) { {{ tile.type }} } @else { ? }</span>
                   </button>
                 }
               </div>
@@ -507,6 +669,7 @@ export class RoomPageComponent implements AfterViewInit {
   protected diceValues = [0, 0, 0, 0, 0, 0];
   diceMap = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   lootToolIndex = 0;
+  floorCount: 2 | 3 = 3
 
   roomId = this.route.snapshot.paramMap.get('id')!;
 
@@ -517,6 +680,7 @@ export class RoomPageComponent implements AfterViewInit {
       if (r) {
         this.seed = r.seed;
         this.currentPhase = r.phase;
+        this.floorCount = r.floorCount
         // Ha most kezdődött a játék és van pozíciónk, ugorjunk oda
         if (r.phase === 'play' && r.game) {
           const myPos = r.game.playerPositions?.[this.playerName ?? ''];
@@ -526,11 +690,18 @@ export class RoomPageComponent implements AfterViewInit {
             // kivéve ha tényleg ott vagyunk.
           }
         }
+
+        this.showCharacterDialog = !!(
+          r?.phase === 'play' &&
+          r.game &&
+          !this.isSpectator(r) &&
+          this.isMyTurn(r) &&
+          this.needsCharacter(r)
+        );
+
       }
     })
   );
-
-
   // mentett név
   protected activeFloorIdx = 0;
 
@@ -554,7 +725,7 @@ export class RoomPageComponent implements AfterViewInit {
     const scaleX = window.innerWidth / appWidth;
     const scaleY = window.innerHeight / appHeight;
 
-    const scale = Math.min(scaleX, scaleY, 1); // soha ne nőjön desktopon
+    const scale = Math.min(scaleX, scaleY, 1);
 
     app.style.transform = `scale(${scale})`;
   }
@@ -645,7 +816,7 @@ export class RoomPageComponent implements AfterViewInit {
 
   protected changeFloor(delta: number) {
     const newIdx = this.activeFloorIdx + delta;
-    if (newIdx >= 0 && newIdx < 3) {
+    if (newIdx >= 0 && newIdx < this.floorCount) {
       this.activeFloorIdx = newIdx;
     }
   }
@@ -699,15 +870,12 @@ export class RoomPageComponent implements AfterViewInit {
       this.seednum |= 0;
     }
 
-    game.guardPositions[0].pos = game.guardPositions[0].moves[0]; // kezdőpozíció beállítása
-    game.guardPositions[0].target = game.guardPositions[0].moves[1]; // célpozíció beállítása
-    game.guardPositions[0].moves = game.guardPositions[0].moves.slice(2); // első két lépés már felhasználva
-    game.guardPositions[1].pos = game.guardPositions[1].moves[0]; // kezdőpozíció beállítása
-    game.guardPositions[1].target = game.guardPositions[1].moves[1]; // célpozíció beállítása
-    game.guardPositions[1].moves = game.guardPositions[1].moves.slice(2); // első két lépés már felhasználva
-    game.guardPositions[2].pos = game.guardPositions[2].moves[0]; // kezdőpozíció beállítása
-    game.guardPositions[2].target = game.guardPositions[2].moves[1]; // célpozíció beállítása
-    game.guardPositions[2].moves = game.guardPositions[2].moves.slice(2); // első két lépés már felhasználva
+
+    for (let i = 0; i < floorCount; i++) {
+      game.guardPositions[i].pos = game.guardPositions[i].moves[0];
+      game.guardPositions[i].target = game.guardPositions[i].moves[1];
+      game.guardPositions[i].moves = game.guardPositions[i].moves.slice(2);
+    }
 
     game.playerOrder = [...room.players];
 
@@ -750,10 +918,10 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   protected canMove(room: Room, fIdx: number, tIdx: number, dir: 'up' | 'right' | 'bottom' | 'left' | 'floorUp' | 'floorDown'): boolean {
-    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
+    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room) || this.needsCharacter(room)) return false;
 
     if (dir === 'floorUp') {
-      return fIdx < 2
+      return fIdx < this.floorCount - 1
         && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp
         || ((room.game.gymnastics !== "" && room.game.floors[fIdx].tiles[tIdx].type === 'Walkway')))
         && room.game.timelock === "";
@@ -772,7 +940,7 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   protected canInteract(room: Room, fIdx: number, tIdx: number): boolean {
-    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room)) return false;
+    if (this.isSpectator(room) || !room.game || !this.isMyTurn(room) || this.needsCharacter(room)) return false;
     const playerPositions = room.game.playerPositions || {};
     const myPos = playerPositions[this.playerName ?? ''];
 
@@ -948,6 +1116,11 @@ export class RoomPageComponent implements AfterViewInit {
     }
     occupiedandgemstone = !(occupiedandgemstone && game.inventory[this.playerName].loot.indexOf("Gemstone") !== -1)
 
+
+    const isAcrobat = room.game?.playerCharacter?.[this.playerName] === 'Acrobat';
+    const steppingOntoGuard = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x === tIdx;
+
+    if (!(isAcrobat && steppingOntoGuard)) {
     if (game.floors[fIdx].tiles[tIdx].type === 'SafetyLock') {
       let occupied = false;
       for (const player in game.playerPositions) {
@@ -956,15 +1129,20 @@ export class RoomPageComponent implements AfterViewInit {
           break;
         }
       }
-        if (game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x === tIdx) {occupied = true;}
-
+      if (game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x === tIdx) {
+        occupied = true;
+      }
 
       if (occupied) {
-        if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
+        if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
+          return;
+        }
       } else {
         if (!await this.useActionPoint(game, 3)) {
           if (!game.floors[fIdx].tiles[tIdx].revealed) {
-            if (!await this.useActionPoint(game, 1)) {return;}
+            if (!await this.useActionPoint(game, 1)) {
+              return;
+            }
             game.floors[fIdx].tiles[tIdx].revealed = true;
             await this.roomService.setGameState(this.roomId, game);
             return;
@@ -976,28 +1154,39 @@ export class RoomPageComponent implements AfterViewInit {
     } else {
       if (game.floors[fIdx].tiles[tIdx].type === 'Laser') {
         if (!game.floors[fIdx].tiles[tIdx].revealed || (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1)) {
-          if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
+          if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
+            return;
+          }
           this.triggerAlarm(game, "Laser", fIdx, tIdx);
         } else {
           const guard = game.guardPositions[fIdx];
           if (game.currentAP >= 2 && !(tIdx === guard.pos.y * 4 + guard.pos.x || game.floors[fIdx].alarms.includes(tIdx))) {
 
-            if(await this.askActionPoints()){
-              if (!await this.useActionPoint(game, 2)) {return;}
-            }else {
+            if (await this.askActionPoints()) {
+              if (!await this.useActionPoint(game, 2)) {
+                return;
+              }
+            } else {
 
-              if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
+              if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
+                return;
+              }
               this.triggerAlarm(game, "Laser", fIdx, tIdx);
             }
           } else {
-            if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
+            if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
+              return;
+            }
             this.triggerAlarm(game, "Laser", fIdx, tIdx);
           }
         }
-      }else {
-          if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {return;}
+      } else {
+        if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
+          return;
+        }
       }
     }
+  }
 
     if(game.floors[fIdx].tiles[tIdx].type === 'Motion') {
       this.triggeredMotions.push({fIdx: fIdx, tIdx: tIdx});
@@ -1034,7 +1223,7 @@ export class RoomPageComponent implements AfterViewInit {
       game.playerPositions[name] = { floor: fIdx, tileIdx: tIdx };
     }
 
-    game.floors[fIdx].tiles[tIdx].revealed = true; // Rálépés felfedi
+    game.floors[fIdx].tiles[tIdx].revealed = true;
 
     // Őrrel való találkozás ellenőrzése
     let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
@@ -1059,7 +1248,7 @@ export class RoomPageComponent implements AfterViewInit {
     let g1Idx,g2Idx = undefined
     if (fIdx > 0)
       g1Idx = game.guardPositions[fIdx - 1].pos.y * 4 + game.guardPositions[fIdx - 1].pos.x;
-    if (fIdx < 2)
+    if (fIdx < this.floorCount - 1)
       g2Idx = game.guardPositions[fIdx + 1].pos.y * 4 + game.guardPositions[fIdx + 1].pos.x;
 
     if ((tIdx === g1Idx || tIdx === g2Idx) && game.floors[fIdx].tiles[tIdx].type === 'Atrium' && !this.isInvisible) {
@@ -1102,6 +1291,7 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     await this.roomService.setGameState(this.roomId, game);
+    return game
   }
 
 
@@ -1459,6 +1649,7 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   async endTurn(room: Room) {
+    if (this.needsCharacter(room)) return;
     this.diceValues = [0,0,0,0,0,0];
     this.alreadyDamaged = []
     if (!room.game || !this.isMyTurn(room)) return;
@@ -1486,6 +1677,17 @@ export class RoomPageComponent implements AfterViewInit {
       await this.drawEvent(game)
 
     this.actionCount = 0
+
+
+    if (game.playerCharacter?.[this.playerName] === 'Acrobat') {
+      const guardPos = game.guardPositions[game.playerPositions[this.playerName].floor].pos;
+      const guardTileIdx = guardPos.y * 4 + guardPos.x;
+
+      if (game.playerPositions[this.playerName].tileIdx === guardTileIdx) {
+        game.healths[this.playerName] = (game.healths[this.playerName] ?? 0) - 1;
+      }
+    }
+
 
     if (prevPlayerPos) {
       game.currentPlayerIdx = -1;
@@ -1536,6 +1738,8 @@ export class RoomPageComponent implements AfterViewInit {
     if (game.gymnastics === game.playerOrder[game.currentPlayerIdx]){
       game.gymnastics = ""
     }
+
+    this.hawkPeeked = false
 
     if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
       game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
@@ -1597,7 +1801,6 @@ export class RoomPageComponent implements AfterViewInit {
       const x = idx % 4;
       const y = Math.floor(idx / 4);
 
-      // SAME neighbor rules as your getGuardPath() [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
       const neighbors: { n: number; ok: boolean }[] = [
         { n: idx - 4, ok: y > 0 && !tiles[idx].walls.top },
         { n: idx + 4, ok: y < 3 && !tiles[idx].walls.bottom },
@@ -1666,7 +1869,18 @@ export class RoomPageComponent implements AfterViewInit {
       return; // Ha az őr már ott van, ne csináljon semmit
     }
 
-    if (roomType === 'Fingerprint') {
+    let hackerOnTile = false
+    for (let i = 0; i < Object.keys(game.playerPositions).length; i++) {
+      if (game.playerPositions[game.playerOrder[i]].floor === fIdx && game.playerPositions[game.playerOrder[i]].tileIdx === tIdx && game.playerCharacter[game.playerOrder[i]] === "Hacker"){
+        hackerOnTile = true}
+    }
+
+    if (roomType === 'Fingerprint' && !(game.playerCharacter[this.playerName] === "Hacker") && !hackerOnTile) {
+      if (game.hackHacker > 0){
+        game.hackHacker = 0
+        return
+      }
+
       if (game.hackFingerprint > 0){
         game.hackFingerprint -= 1;
       return}
@@ -1674,16 +1888,26 @@ export class RoomPageComponent implements AfterViewInit {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Motion') {
+    if (roomType === 'Motion' && !(game.playerCharacter[this.playerName] === "Hacker") && !hackerOnTile) {
+      if (game.hackHacker > 0){
+        game.hackHacker = 0
+        return
+      }
+
       if (game.hackMotion > 0){
         game.hackMotion -= 1;return}
       else {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if (roomType === 'Laser') {
+    if (roomType === 'Laser' && !(game.playerCharacter[this.playerName] === "Hacker") && !hackerOnTile) {
       if (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1)
         return
+
+      if (game.hackHacker > 0){
+        game.hackHacker = 0
+        return
+      }
 
       if (game.hackLaser > 0){
         game.hackLaser -= 1;return}
@@ -1700,6 +1924,8 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   checkClosestAlarm(game: GameState, guard: GameState['guardPositions'][0], fIdx: number, guardIdx: number) {
+    if (game.floors[fIdx].alarms.length === 0){return;}
+
     let closestAlarm = Infinity;
     let shortestPath = Infinity
     for (let i = 0; i < game.floors[fIdx].alarms.length; i++) {
@@ -1792,7 +2018,7 @@ export class RoomPageComponent implements AfterViewInit {
     if (!game) return;
 
     if (isGuard) {
-      for (let i = 0; i < game.playerOrder.length; i++) {
+      for (let i = 0; i < Object.keys(game.playerPositions).length; i++) {
         pFloor = game.playerPositions[game.playerOrder[i]].floor;
         pTile = game.playerPositions[game.playerOrder[i]].tileIdx;
         if (game.floors[pFloor].tiles[pTile].type === 'Camera') {
@@ -1952,7 +2178,7 @@ export class RoomPageComponent implements AfterViewInit {
       game.inventory[this.playerName].tool = []
     }
     if (eventName === "BrownOut"){
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < this.floorCount; i++) {
       if (game.floors[i].alarms.length < game.guardPositions[i].moves.length){
         game.guardPositions[i].moves = game.guardPositions[i].moves.slice(Math.min(0,game.floors[i].alarms.length - 1))
       } else {
@@ -1966,7 +2192,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     }
     if (eventName === "Shoplifting"){
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < this.floorCount; i++) {
         for (let j = 0; j < 16; j++) {
           if (game.floors[i].tiles[j].type === "Laboratory" && game.floors[i].tiles[j].empty)
             this.triggerAlarm(game, "Shoplifting", i, j)
@@ -1999,7 +2225,7 @@ export class RoomPageComponent implements AfterViewInit {
       await this.drawTool(game,this.playerName)
     }
     if (eventName === "FreightElevator") {
-      game.playerPositions[this.playerName].floor = Math.min(2, game.playerPositions[this.playerName].floor + 1)
+      game.playerPositions[this.playerName].floor = Math.min(this.floorCount - 1, game.playerPositions[this.playerName].floor + 1)
       game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].revealed = true
     }
     if (eventName === "WhereIsHe") {
@@ -2039,7 +2265,7 @@ export class RoomPageComponent implements AfterViewInit {
         await this.moveGuardWithDelay(game, 0)
       if(game.playerPositions[this.playerName].floor !== 1)
         await this.moveGuardWithDelay(game, 1)
-      if(game.playerPositions[this.playerName].floor !== 2)
+      if(game.playerPositions[this.playerName].floor !== 2 && this.floorCount === 3)
         await this.moveGuardWithDelay(game, 2)
       this.animatation = false
     }
@@ -2079,6 +2305,11 @@ export class RoomPageComponent implements AfterViewInit {
       this.animatation = true
 
         dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+          }
+        });
         dialog.showModal();
         const choice = await new Promise<string>((resolve) => {
           dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
@@ -2134,7 +2365,7 @@ export class RoomPageComponent implements AfterViewInit {
           choice4.hidden = false}
         else
           choice4.hidden = true
-      if (game.playerPositions[this.playerName].floor < 2 && !game.floors[game.playerPositions[this.playerName].floor + 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed)
+      if (game.playerPositions[this.playerName].floor < (this.floorCount - 1) && !game.floors[game.playerPositions[this.playerName].floor + 1].tiles[game.playerPositions[this.playerName].tileIdx].revealed)
       {choice5.hidden = false
         choice5.innerText = "Upstairs"}
       else
@@ -2149,7 +2380,12 @@ export class RoomPageComponent implements AfterViewInit {
 
       this.animatation = true
 
-      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), {});
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+        }
+      });
       dialog.showModal();
       const choice = await new Promise<string>((resolve) => {
         dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
@@ -2220,6 +2456,8 @@ export class RoomPageComponent implements AfterViewInit {
 
       if (!choice1.hidden || !choice2.hidden || !choice3.hidden || !choice4.hidden){
         dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {event.preventDefault();}});
         dialog.showModal();
         const choice = await new Promise<string>((resolve) => {
           dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
@@ -2263,7 +2501,7 @@ export class RoomPageComponent implements AfterViewInit {
       const select = document.getElementById("choice-select") as HTMLSelectElement | null;
 
       if (!select) {
-        console.warn("choice-select nincs a DOM-ban (BuddySystemhez kell).");
+        console.warn("choice-select nincs a DOM-ban.");
       } else {
         // 1) eligible játékosok (akiknek van pozíciójuk, és nem te vagy)
         const myPos = game.playerPositions?.[this.playerName];
@@ -2288,8 +2526,6 @@ export class RoomPageComponent implements AfterViewInit {
         }
         select.hidden = false;
 
-        // 3) csak a dropdown + egy OK gomb látszódjon
-
         choice1.hidden = false;
         choice1.textContent = "OK";
         choice2.hidden = true;
@@ -2300,6 +2536,8 @@ export class RoomPageComponent implements AfterViewInit {
         // 4) lock + kötelező választás (ESC ne zárja)
         this.animatation = true;
         dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {event.preventDefault();}});
         dialog.showModal();
         await new Promise<void>((resolve) => {
           dialog.addEventListener("close", () => resolve(), { once: true });
@@ -2414,6 +2652,7 @@ export class RoomPageComponent implements AfterViewInit {
   isInvisible = false
   protected async toolClick(room: Room, tool: string) {
     if (!room.game) return;
+    if (this.needsCharacter(room)) return;
     if (this.isSpectator(room) || !this.isMyTurn(room) || room.game.inventory[this.playerName].loot.indexOf("Bust") !== -1) return
     const ok = confirm(`Biztos elhasználod: ${tool}?`);
     if (!ok) return;
@@ -2421,7 +2660,7 @@ export class RoomPageComponent implements AfterViewInit {
     const game = room.game;
 
     if (tool === "Makeup"){
-      for (let i = 0; i < game.playerOrder.length; i++) {
+      for (let i = 0; i < Object.keys(game.playerPositions).length; i++) {
         if (game.playerPositions[game.playerOrder[i]].floor === game.playerPositions[this.playerName].floor && game.playerPositions[game.playerOrder[i]].tileIdx === game.playerPositions[this.playerName].tileIdx){
           game.healths[game.playerOrder[i]] = Math.min(game.healths[game.playerOrder[i]] + 1, 3)
         }
@@ -2437,7 +2676,7 @@ export class RoomPageComponent implements AfterViewInit {
       const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
       const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < this.floorCount; i++) {
         for (let j = 0; j < 16; j++) {
           if (game.floors[i].tiles[j].type === "ComputerMotion"){
             choice1.hidden = !game.floors[i].tiles[j].revealed
@@ -2456,6 +2695,8 @@ export class RoomPageComponent implements AfterViewInit {
       choice3.innerText = "Fingerprint"
       this.animatation = true
       dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2486,7 +2727,7 @@ export class RoomPageComponent implements AfterViewInit {
     if (tool === "EMP") {
       game.emp = this.playerName
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < this.floorCount; i++) {
         game.floors[i].alarms = []
       }
 
@@ -2495,20 +2736,15 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     if (tool === 'Blueprint') {
-      // 1) kötelező célválasztás, közben lock
       const { fIdx, tIdx } = await this.askBlueprintTarget(room);
 
-      // 2) felfedés (bármelyik mező)
       game.floors[fIdx].tiles[tIdx].revealed = true;
 
-      // (opcionális) ha szeretnéd, hogy a blueprint “ráálljon” a nézett szintre:
       this.activeFloorIdx = fIdx;
 
-      // 3) tool levonása
       const invTools = game.inventory[this.playerName].tool;
       invTools.splice(invTools.indexOf(tool), 1);
 
-      // 4) mentés
       await this.roomService.setGameState(this.roomId, game);
       return;
     }
@@ -2528,7 +2764,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
         await this.roomService.setGameState(this.roomId, room.game);
       }
-      else if (game.playerPositions[this.playerName].floor === 2){
+      else if (game.playerPositions[this.playerName].floor === this.floorCount - 1){
         game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true
         this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
         game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
@@ -2544,6 +2780,8 @@ export class RoomPageComponent implements AfterViewInit {
         choice3.hidden = true
         this.animatation = true
         dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+        dialog.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {event.preventDefault();}});
         dialog.showModal();
 
         dialog.onclose = async () => {
@@ -2582,9 +2820,14 @@ export class RoomPageComponent implements AfterViewInit {
 
       choice1.innerText = "1. Szint"
       choice2.innerText = "2. Szint"
-      choice3.innerText = "3. Szint"
+      if (this.floorCount === 3)
+        choice3.innerText = "3. Szint"
+      else
+        choice3.hidden = true
       this.animatation = true
       dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2642,6 +2885,8 @@ export class RoomPageComponent implements AfterViewInit {
         choice3.hidden = true
       this.animatation = true
       dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2724,6 +2969,8 @@ export class RoomPageComponent implements AfterViewInit {
 
       this.animatation = true
       dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
 
       dialog.onclose = async () => {
@@ -2811,16 +3058,21 @@ export class RoomPageComponent implements AfterViewInit {
 
   private blueprintResolver: ((value: { fIdx: number; tIdx: number }) => void) | null = null;
 
-// opcionális: melyik szint látszódjon a modalban
   blueprintFloorIdx = 0;
-
-  askBlueprintTarget(room: Room): Promise<{ fIdx: number; tIdx: number }> {
+  blueprintHeaderText = 'Blueprint – válassz egy mezőt a felfedéshez';
+  blueprintAllowedMask: Record<number, boolean[]> | null = null;
+  askBlueprintTarget(room: Room, opts?: { allowedMask?: Record<number, boolean[]>, header?: string }): Promise<{ fIdx: number; tIdx: number }> {
     // alapból a játékos szintjére ugrunk, ha van
     const myPos = room.game?.playerPositions?.[this.playerName ?? ''];
     if (myPos) this.blueprintFloorIdx = myPos.floor;
 
+
+    this.blueprintAllowedMask = opts?.allowedMask ?? null;
+    this.blueprintHeaderText = opts?.header ?? 'Blueprint – válassz egy mezőt a felfedéshez';
+
+
     this.showBlueprintDialog = true;
-    this.animatation = true; // <= EZ LOCKOL mindent nálad (isMyTurn tilt) [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+    this.animatation = true;
 
     return new Promise(resolve => {
       this.blueprintResolver = resolve;
@@ -2829,17 +3081,21 @@ export class RoomPageComponent implements AfterViewInit {
 
   resolveBlueprintTarget(fIdx: number, tIdx: number, revealed: boolean) {
     if (!this.blueprintResolver) return;
-    if (revealed) return;
+    const allowed = !this.blueprintAllowedMask || this.blueprintAllowedMask[fIdx]?.[tIdx];
+    if (revealed || !allowed) return;
+    const payload = { fIdx, tIdx };
+
     this.showBlueprintDialog = false;
     this.animatation = false;
-    this.blueprintResolver({ fIdx, tIdx });
+    this.blueprintAllowedMask = null;
+    this.blueprintResolver(payload);
     this.blueprintResolver = null;
+
   }
 
   // --- Crystal dialog state ---
   showCrystalDialog = false;
 
-// a három "felhúzott" event (név stringek)
   crystalCards: string[] = [];
 
 // a pakli maradéka (a top3 után)
@@ -2853,7 +3109,6 @@ export class RoomPageComponent implements AfterViewInit {
     // working pakli: ha nincs 3 lap, keverünk újat
     let workingDeck = Array.isArray(game.events) ? [...game.events] : [];
 
-    // ha nincs elég 3 event, újrakeverés (event/discard még nincs implementálva) [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
     if (workingDeck.length < 3) {
       workingDeck = this.shuffle([...eventList]);
     }
@@ -2865,7 +3120,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     // UI lock + modal
     this.showCrystalDialog = true;
-    this.animatation = true; // lock: amíg nyitva van, ne lehessen mást csinálni [1](https://siemens-my.sharepoint.com/personal/daniel_simon_siemens_com/Documents/Microsoft%20Copilot%20Chat%20Files/room-page.ts.txt)
+    this.animatation = true;
 
     return new Promise(resolve => {
       this.crystalResolver = resolve;
@@ -2890,4 +3145,216 @@ export class RoomPageComponent implements AfterViewInit {
     moveItemInArray(this.crystalCards, event.previousIndex, event.currentIndex);
   }
 
+  // --- Character pick state ---
+  showCharacterDialog = false;
+
+// Characters lista (ha a Characters export enum/const, ebből szedjük ki)
+  protected readonly characterList: string[] = (() => {
+    const vals = Object.values(Characters as any);
+    // enum esetén jönnek számok is, azokat kiszűrjük
+    return vals.filter(v => typeof v === 'string') as string[];
+  })();
+
+  protected needsCharacter(room: Room): boolean {
+    if (this.isSpectator(room) || !room.game) return false;
+    const name = this.playerName ?? '';
+    const pc = (room.game as any).playerCharacter ?? {};
+    return !pc[name] || pc[name].trim() === '';
+  }
+
+  protected isCharacterTaken(room: Room, character: string): boolean {
+    const pc = (room.game as any)?.playerCharacter ?? {};
+    return Object.entries(pc).some(([p, c]) => p !== (this.playerName ?? '') && (typeof c === 'string') && character.startsWith(c));
+  }
+
+  protected async selectCharacter(room: Room, character: string) {
+    if (!room.game) return;
+    const name = this.playerName ?? '';
+    if (!name) return;
+
+    const game: GameState = JSON.parse(JSON.stringify(room.game));
+    (game as any).playerCharacter = (game as any).playerCharacter ?? {};
+    (game as any).playerCharacter[name] = character;
+
+    this.showCharacterDialog = false;
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  canUseCharacterSpell(room: Room): boolean{
+    if(room.game?.playerCharacter[this.playerName] === "AcrobatHard" && room.game.currentAP >= 3 && [5,6,9,10].indexOf(room.game.playerPositions[this.playerName].tileIdx) === -1){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === "HackerHard" && room.game.currentAP > 0 && room.game.hackHacker === 0){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === "Hawk" && !this.hawkPeeked){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === 'HawkHard' && !this.hawkPeeked){
+      return true}
+
+    return false
+  }
+
+  hawkPeeked = false
+  protected async useCharacterSpell(room: Room) {
+    if (!room.game) return
+
+    const game = room.game;
+    let updatedGame= JSON.parse(JSON.stringify(room.game));
+
+    const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+    const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+    const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+    const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+    const choice4 = document.getElementById("choice-4") as HTMLDialogElement;
+    const closebtn = document.getElementById("choice-cancel") as HTMLDialogElement
+
+    if (game.playerCharacter[this.playerName] === "AcrobatHard" && game.currentAP >= 3 && [5,6,9,10].indexOf(game.playerPositions[this.playerName].tileIdx) === -1){
+      if (game.playerPositions[this.playerName].floor < room.floorCount - 1)
+        choice1.innerText = "Felfelé"
+      else
+        choice1.hidden = true
+      if (game.playerPositions[this.playerName].floor > 0)
+        choice2.innerText = "Lefelé"
+      else
+        choice2.hidden = true
+
+      choice3.hidden = true
+      this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {if (event.key === 'Escape') {event.preventDefault();}});
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+
+      if (choice === "1") {
+        updatedGame = await this.moveToTile(room, game.playerPositions[this.playerName].floor + 1, game.playerPositions[this.playerName].tileIdx)
+        updatedGame.currentAP = 0
+      }
+      if (choice === "2") {
+        updatedGame = await this.moveToTile(room, game.playerPositions[this.playerName].floor - 1, game.playerPositions[this.playerName].tileIdx)
+        updatedGame.currentAP = 0
+      }
+
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      closebtn.hidden = false
+    }
+
+    if (game.playerCharacter[this.playerName] === "HackerHard" && game.currentAP > 0 && room.game.hackHacker === 0){
+      updatedGame.hackHacker = 1
+      updatedGame.currentAP -= 1
+    }
+
+    if (game.playerCharacter[this.playerName] === "Hawk" && !this.hawkPeeked){
+      let walls = game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].walls
+      if (game.playerPositions[this.playerName].tileIdx > 4 && walls.top && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed)
+        choice1.innerText = "Fel"
+      else
+        choice1.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 3 && walls.right && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed)
+        choice2.innerText = "Jobbra"
+      else
+        choice2.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx < 12 && walls.bottom && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed)
+        choice3.innerText = "Le"
+      else
+        choice3.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 0 && walls.left && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed)
+      { choice4.hidden = false
+        choice4.innerText = "Balra"}
+      else
+        choice4.hidden = true
+
+      this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {if (event.key === 'Escape') {event.preventDefault();}});
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+
+      if (choice === "1")
+        updatedGame.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed = true
+      if (choice === "2")
+        updatedGame.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed = true
+      if (choice === "3")
+        updatedGame.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed = true
+      if (choice === "4")
+        updatedGame.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed = true
+
+      if (choice !== "Cancel") {this.hawkPeeked = true}
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      choice4.hidden = true
+      this.animatation = false
+    }
+
+    if (game.playerCharacter[this.playerName] === "HawkHard" && !this.hawkPeeked) {
+      const f = game.playerPositions[this.playerName].floor;
+      const t = game.playerPositions[this.playerName].tileIdx;
+
+      // 1) induló maszk (mindenhol false)
+      const mask: Record<number, boolean[]> = {};
+      for (let i = 0; i < this.floorCount; i++) mask[i] = Array(16).fill(false);
+
+      // 2) szomszédok az aktuális szinten (falat figyelembe véve), csak unrevealed célok
+      const neighbors1: number[] = [];
+      const x = t % 4, y = Math.floor(t / 4);
+      const pushIfOk = (n: number) => {
+        if (n < 0 || n > 15) return;
+        if (!this.isWallBetween(room, f, t, n)) neighbors1.push(n);
+      };
+      if (y > 0) pushIfOk(t - 4);
+      if (x < 3) pushIfOk(t + 1);
+      if (y < 3) pushIfOk(t + 4);
+      if (x > 0) pushIfOk(t - 1);
+
+      // 1-lépés: ha a szomszéd unrevealed, akkor kijelölhető
+      for (const n of neighbors1) {
+        if (!game.floors[f].tiles[n].revealed) mask[f][n] = true;
+      }
+
+      // 3) 2-lépés: csak ha a KÖZTES mező revealed
+      for (const mid of neighbors1) {
+        if (!game.floors[f].tiles[mid].revealed) continue; // itt a "nem ugorhatsz át unrevealed-en" szabály
+        const mx = mid % 4, my = Math.floor(mid / 4);
+
+        const secondNeighbors: number[] = [];
+        const push2 = (n: number) => {
+          if (n < 0 || n > 15) return;
+          if (!this.isWallBetween(room, f, mid, n)) secondNeighbors.push(n);
+        };
+        if (my > 0) push2(mid - 4);
+        if (mx < 3) push2(mid + 1);
+        if (my < 3) push2(mid + 4);
+        if (mx > 0) push2(mid - 1);
+
+        for (const d of secondNeighbors) {
+          if (d === t) continue; // ne lépj vissza önmagadra
+          if (!game.floors[f].tiles[d].revealed) mask[f][d] = true;
+        }
+      }
+
+      // 4) Vertikális peek (azonos index, szomszédos szint) – a mozgásszabállyal egyezően
+      if (this.canMove(room, f, t, 'floorUp') && f < this.floorCount - 1) {
+        if (!game.floors[f + 1].tiles[t].revealed) mask[f + 1][t] = true;
+      }
+      if (this.canMove(room, f, t, 'floorDown') && f > 0) {
+        if (!game.floors[f - 1].tiles[t].revealed) mask[f - 1][t] = true;
+      }
+
+      // 5) Ugyanaz a dialógus, más fejléc + maszk
+      const { fIdx, tIdx } = await this.askBlueprintTarget(room, {
+        allowedMask: mask,
+        header: 'HawkHard – válassz egy elérhető mezőt a benézéshez (max 2 lépés)'
+      });
+
+      updatedGame.floors[fIdx].tiles[tIdx].revealed = true;
+      this.hawkPeeked = true;
+    }
+
+    if (updatedGame)
+    await this.roomService.setGameState(this.roomId, updatedGame);
+  }
 }

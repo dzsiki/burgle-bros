@@ -288,7 +288,7 @@ html, body {
 
 .floor {
   width: 100%;
-  max-width: min(800px, 98vw);
+  max-width: 750px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -760,11 +760,11 @@ html, body {
 }
 
 .side-panel-right {
-  width: 220px;
+  width: 500px;
   margin: 1rem;
   display: flex;
   flex-direction: column;
-  height: 85%;
+  height: 900px;
   box-sizing: border-box;
   align-items: center; /* vízszintesen középen */
 
@@ -793,39 +793,36 @@ html, body {
   flex: 0 0 auto;
   width: 100%;
   text-align: center;
-  height: 33%;
 }
 
 .panel-middle {
-  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   justify-content: center; /* függőlegesen középen */
   align-items: center; /* vízszintesen középen */
-  gap: 1rem;
+  gap: 10px;
   width: 100%;
-  height: 33%;
+  height: 300px;
+  font-size: large;
+  font-weight: bold;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
 }
 
 .panel-bottom {
-  flex: 0 0 auto;
   width: 100%;
-  height: 33%;
+  padding-top: 10px;
   display: flex;
-  justify-content: center;
-  padding-bottom: 1rem;
-  position: sticky;
-  bottom: 0; /* viewporthoz rögzítve */
-  padding-top: 1rem;
-  align-content: end;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center; /* opcionális: középre igazítja a gombokat */
+  gap: 10px;          /* kis térköz a gombok között */
 }
 
 .endturnbtn button {
   font-size: 1.4rem; /* nagyobb betűméret */
   padding: 1rem 2rem; /* nagyobb gomb */
   width: 80%; /* szélesebb */
-  height: 4rem;
+  height: 50px;
   max-width: 220px; /* ne legyen túl széles */
   border-radius: 12px; /* szép lekerekítés */
   font-weight: 700; /* erős, jól látható */
@@ -842,15 +839,14 @@ html, body {
   transform: scale(1.2);
 }
 
-
 .panel-dice {
-  margin-top: 1rem;
+  margin-top: 5px;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2 oszlop */
-  grid-template-rows: repeat(3, 50px);   /* 3 sor, mind 50px magas */
+  grid-template-columns: repeat(6, 50px);
   gap: 0.5rem;
   justify-items: center;
+  justify-content: center;
   align-items: center;
 }
 
@@ -913,10 +909,9 @@ html, body {
 
 .heatmap-grid {
   display: grid;
-  width: 90%;
-  height: 90%;
+  width: 200px;
+  height: 200px;
   grid-template-columns: repeat(4, 25%);
-  margin-top: 10px;
 }
 
 .heat-cell {
@@ -1126,6 +1121,19 @@ dialog form {
   outline: 2px solid rgba(34, 197, 94, 0.75);
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18), 0 12px 24px rgba(0,0,0,0.30);
 }
+.hawkCurrent{
+  background: rgba(34, 197, 94, 0.75)
+}
+
+.bpdisabled{
+  background: rgba(0,0,0,0.18);
+}
+.bpdisabled:hover{
+  transform: translateY(0);
+  border-color: rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.18);
+  cursor: not-allowed;
+}
 
 .floorTabs button{
   /* középre rendezett, nagyobb gombok */
@@ -1324,4 +1332,72 @@ dialog form {
 
 .lbl{
   font-weight:800;
+}
+
+.char-heat-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.character-box,
+.heatmap-container {
+  width: 200px;
+}
+
+.character-img {
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1000;
+  background: #0f0f0f;
+  object-fit: contain;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.character-img:hover {
+  transform: scale(2) translateX(-63px);
+  box-shadow: 0 0 12px rgba(0,0,0,0.6);
+}
+
+.stats-row .label {
+  font-weight: 600;
+  text-align: right;  /* hogy a szöveg a kettőspont helyére essen */
+  padding-right: 6px;
+}
+
+.stats-row .value {
+  text-align: left;
+}
+
+.separator {
+  margin: 10px 0 6px;
+  font-weight: 700;
+  text-align: center;
+  opacity: .7;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 250px 250px; /* cím | érték */
+  justify-content: center;           /* a gridet középre teszi */
+  gap: 10px;
+  height: 25px;
+}
+
+.label {
+  font-weight: 600;
+  text-align: right;
+}
+
+.value {
+  text-align: left;
+}
+
+.separator {
+  margin: 10px 0 6px;
+  font-weight: 700;
+  text-align: center;
+  opacity: .7;
 }

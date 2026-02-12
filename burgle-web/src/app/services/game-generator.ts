@@ -1,7 +1,7 @@
 
 import {GameState, Tile, TileType, Floor, keypadTile} from './room';
 
-const ALL_TILE_3_FlOOR: TileType[] = [
+const ALL_TILE_3_FLOOR: TileType[] = [
   'ServiceDuct', 'ServiceDuct', 'Laser', 'Laser', 'Laser', 'Thermo', 'Thermo', 'Thermo', 'Fingerprint', 'Fingerprint',
   'Fingerprint', 'ComputerMotion', 'ComputerLaser', 'ComputerFingerprint', 'Camera', 'Camera', "Camera", 'Camera',
   'Toilet', 'Motion', 'Motion', 'Motion', 'Scanner', 'Scanner', 'Scanner', 'Walkway', 'Walkway', 'Walkway',
@@ -40,17 +40,31 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
   };
 
   const floors: Floor[] = [];
-  let available_rooms = shuffle([...ALL_TILE_3_FlOOR], random);
+  let available_rooms: TileType[] = []
+  if (floorCount === 3)
+    available_rooms = shuffle([...ALL_TILE_3_FLOOR], random)
+  else if (floorCount === 2)
+    available_rooms = shuffle([...ALL_TILE_2_FLOOR], random)
 
   // 3 szint (Burgle Bros alap játékban általában 3 szint van)
-  for (let f = 0; f < 3; f++) {
+  for (let f = 0; f < floorCount; f++) {
     floors.push(generateFloor(random, available_rooms.slice(0,14)));
     available_rooms = available_rooms.slice(14);
   }
+  let topFloorIfTwo: Tile[] = []
+  for (let i = 0; i < 16; i++) {
+    const x = i % 4;
+    const y = Math.floor(i / 4);
+    topFloorIfTwo.push({
+      type: 'Disabled', revealed: false, walls: {top: y === 0, right: x === 3, bottom: y === 3, left: x === 0},
+      tokens: 0, number: Math.floor(random() * 6) + 1, cracked: false, empty: false, stealthtoken: 0,
+      thermalStairsUp: false, thermalStairsDown: false, cat: false, gold: false,})
+  }
+  floors.push({tiles: topFloorIfTwo, alarms: [], safeOpened: false})
 
   let keypadTiles: keypadTile[] = [];
 
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < floorCount; k++) {
     for (let j = 0; j < floors[k].tiles.length; j++) {
       if (floors[k].tiles[j].type === 'Keypad') {
         keypadTiles.push({
@@ -79,6 +93,7 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
       { floor: 2, pos: { x: 0, y: 0 }, target: { x: 0, y: 0 }, speed: 4, moves: shuffle([...guardtargets], random), donut: false},
     ],
     playerPositions: {},
+    playerCharacter: {},
     playerOrder: [],
     currentPlayerIdx: 0,
     currentAP: 4,
@@ -87,6 +102,7 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
     hackMotion: 0,
     hackFingerprint: 0,
     hackLaser: 0,
+    hackHacker: 0,
     keypads: keypadTiles,
     tools: shuffle([...toolsList], random),
     loots: shuffle([...lootList], random),

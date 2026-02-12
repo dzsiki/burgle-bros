@@ -1,15 +1,16 @@
 Profilon szekrény a lootal
 
+ESC kilép még mindig a dialogból ✔
 LOSE screen
 WIN screen
 
 Characters:
-'ACROBAT': You may move into a tile with a guard as a free action (multiple times per turn) and will not lose a stealth token if you leave the tile before the guard moves (meaning you leave the tile with the guard before ending your turn to not lose stealth).
-  / If you are on a perimeter tile (or next to the empty tile in Fort Knox) you may spend 3 actions to move up or down one floor to the corresponding tile, all movement rules for trying to enter a tile still apply, doing so consumes all your actions.
-'HACKER': You do not trigger fingerprint, laser, or motion tiles and other players will not trigger those tiles if you are there. The ability is not optional and does not apply to detector and thermo tiles.
-  / You can add a hack token to yourself as an action. This token can be used as a fingerprint, laser or motion hack token by any player. You can only store up to one hack token on yourself.
-'HAWK': As a free action, once per turn, you can peek through an adjacent wall to reveal a tile.
-  / As a free action, once per turn, you may peek at a tile up to two spaces away. You cannot skip over unrevealed tiles and you cannot see through walls but you can use the ability to peek around corners and peek up stairs.
+✔'ACROBAT': You may move into a tile with a guard as a free action (multiple times per turn) and will not lose a stealth token if you leave the tile before the guard moves (meaning you leave the tile with the guard before ending your turn to not lose stealth).
+✔  / If you are on a perimeter tile (or next to the empty tile in Fort Knox) you may spend 3 actions to move up or down one floor to the corresponding tile, all movement rules for trying to enter a tile still apply, doing so consumes all your actions.
+✔'HACKER': You do not trigger fingerprint, laser, or motion tiles and other players will not trigger those tiles if you are there. The ability is not optional and does not apply to detector and thermo tiles.
+✔  / You can add a hack token to yourself as an action. This token can be used as a fingerprint, laser or motion hack token by any player. You can only store up to one hack token on yourself.
+✔'HAWK': As a free action, once per turn, you can peek through an adjacent wall to reveal a tile.
+✔  / As a free action, once per turn, you may peek at a tile up to two spaces away. You cannot skip over unrevealed tiles and you cannot see through walls but you can use the ability to peek around corners and peek up stairs.
 'JUICER': As a free action (multiple times per turn), you may trigger an alarm on an adjacent tile, but not through walls. Note - you cannot trigger an alarm on a hidden tile or a tile with a guard on it.
   / As a free action, once per turn, you may pick up an active alarm on your tile and draw a new patrol card, or discard one of your alarm tokens to trigger an alarm.
 'PETERMAN': Roll 1 additional die when rolling for the safe or keypad.

@@ -12,6 +12,11 @@ export type TileType =
   'Laser' | 'Toilet' | 'Motion' | 'Scanner' | 'SecretDoor' | 'ServiceDuct' | 'Thermo' | 'Walkway' | 'ComputerLaser' |
   'ComputerFingerprint' | 'ComputerMotion' | 'Disabled';
 
+export const Characters = [
+  "Acrobat", "AcrobatHard", "Hacker", "HackerHard", "Hawk", "HawkHard", "Juicer", "JuicerHard", "Peterman", "PetermanHard"
+  , "Raven", "RavenHard", "Rigger", "RiggerHard", "Rook", "RookHard", "Spotter", "SpotterHard"
+]
+
 export interface Tile {
   type: TileType;
   revealed: boolean;
@@ -49,6 +54,7 @@ export interface GameState {
   floors: Floor[];
   guardPositions: { floor: number; pos: { x: number; y: number }; target: { x: number; y: number }; speed: number, moves: { x: number; y: number }[]; donut: boolean }[];
   playerPositions: { [playerName: string]: { floor: number; tileIdx: number } };
+  playerCharacter: { [playerName: string]: string}
   playerOrder: string[]; // ordered list of player names
   currentPlayerIdx: number; // whose turn
   currentAP: number;
@@ -57,6 +63,7 @@ export interface GameState {
   hackMotion: number;
   hackFingerprint: number;
   hackLaser: number;
+  hackHacker: number,
   keypads: keypadTile[];
   tools: string[];
   events: string[];
