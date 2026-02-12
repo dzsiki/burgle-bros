@@ -1,3 +1,5 @@
+Van amikor az őr nem a legközelebbi alarm felé megy: 0,0 -ba ment miután a aharmadik sor első harmadik alarm
+
 Profilon szekrény a lootal
 
 ESC kilép még mindig a dialogból ✔
@@ -11,8 +13,8 @@ Characters:
 ✔  / You can add a hack token to yourself as an action. This token can be used as a fingerprint, laser or motion hack token by any player. You can only store up to one hack token on yourself.
 ✔'HAWK': As a free action, once per turn, you can peek through an adjacent wall to reveal a tile.
 ✔  / As a free action, once per turn, you may peek at a tile up to two spaces away. You cannot skip over unrevealed tiles and you cannot see through walls but you can use the ability to peek around corners and peek up stairs.
-'JUICER': As a free action (multiple times per turn), you may trigger an alarm on an adjacent tile, but not through walls. Note - you cannot trigger an alarm on a hidden tile or a tile with a guard on it.
-  / As a free action, once per turn, you may pick up an active alarm on your tile and draw a new patrol card, or discard one of your alarm tokens to trigger an alarm.
+✔'JUICER': As a free action (multiple times per turn), you may trigger an alarm on an adjacent tile, but not through walls. Note - you cannot trigger an alarm on a hidden tile or a tile with a guard on it.
+✔  / As a free action, once per turn, you may pick up an active alarm on your tile and draw a new patrol card, or discard one of your alarm tokens to trigger an alarm.
 'PETERMAN': Roll 1 additional die when rolling for the safe or keypad.
   / You may add dice and roll on safes above or below your tile. However, you're unable to loot safes from another floor, so the loot remains in the safe until retrieved. Do note that all loot must be carried up to the roof to end and win the game.
 'RAVEN': As a free action, you may place the crow up to two tiles away from your character but not through walls. The crow remains in that location until you move it again. The guard loses an move each time he enters the crow's tile (so a crow placed on the guard's tile won't affect the guard until a subsequent move into said tile.)

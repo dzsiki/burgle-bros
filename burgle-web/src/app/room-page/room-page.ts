@@ -486,6 +486,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                           alt="my character {{myChar}}"
                         />
                       }
+                      @if (room.game?.juicerToken === 1 && room.game?.playerCharacter?.[playerName] === "JuicerHard") {<div class="juicerAlarm">🚨</div>}
                     </div>
                   }
                   <div class="heatmap-container">
@@ -1861,7 +1862,7 @@ export class RoomPageComponent implements AfterViewInit {
     await this.roomService.setGameState(this.roomId, game);
   }
 
-  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite' | "Chihuahua" | "Shoplifting", fIdx: number, tIdx: number) {
+  triggerAlarm(game: GameState, roomType: 'Camera' | 'Laser' | 'Motion' | 'Fingerprint' | 'Thermo' | 'Scanner' | 'Thermal' | 'Dynamite' | "Chihuahua" | "Shoplifting" | "Juicer", fIdx: number, tIdx: number) {
     const guardIdx = game.guardPositions.findIndex(g => g.floor === fIdx);
     const guard = game.guardPositions[guardIdx];
 
@@ -1915,7 +1916,7 @@ export class RoomPageComponent implements AfterViewInit {
         game.floors[fIdx].alarms.push(tIdx);
       }
     }
-    if ((roomType === 'Camera' && game.cameraloop === "") || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite" || roomType === "Chihuahua" || roomType === "Shoplifting") {
+    if ((roomType === 'Camera' && game.cameraloop === "") || roomType === 'Thermo' || roomType === 'Scanner' || roomType === "Thermal" || roomType === "Dynamite" || roomType === "Chihuahua" || roomType === "Shoplifting" || roomType === "Juicer") {
       game.floors[fIdx].alarms.push(tIdx);
     }
 
@@ -3189,6 +3190,13 @@ export class RoomPageComponent implements AfterViewInit {
       return true}
     if(room.game?.playerCharacter[this.playerName] === 'HawkHard' && !this.hawkPeeked){
       return true}
+    if(room.game?.playerCharacter[this.playerName] === 'Juicer'){
+      return true}
+    if(room.game?.playerPositions[this.playerName] && room.game?.playerCharacter[this.playerName] === "JuicerHard" && room.game?.floors[room.game.playerPositions[this.playerName].floor].alarms.find(x => x === room.game?.playerPositions[this.playerName].tileIdx) !== undefined && room.game.juicerToken === 0){
+      return true}
+    if(room.game?.playerPositions[this.playerName] && room.game?.playerCharacter[this.playerName] === "JuicerHard" && room.game.floors[room.game.playerPositions[this.playerName].floor].alarms.find(x => x === room.game?.playerPositions[this.playerName].tileIdx) === undefined && room.game.juicerToken === 1){
+      return true}
+
 
     return false
   }
@@ -3248,7 +3256,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (game.playerCharacter[this.playerName] === "Hawk" && !this.hawkPeeked){
       let walls = game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].walls
-      if (game.playerPositions[this.playerName].tileIdx > 4 && walls.top && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed)
+      if (game.playerPositions[this.playerName].tileIdx > 3 && walls.top && !game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed)
         choice1.innerText = "Fel"
       else
         choice1.hidden = true
@@ -3352,6 +3360,66 @@ export class RoomPageComponent implements AfterViewInit {
 
       updatedGame.floors[fIdx].tiles[tIdx].revealed = true;
       this.hawkPeeked = true;
+    }
+
+    if (game.playerCharacter[this.playerName] === "Juicer"){
+      let walls = game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].walls
+      let gIdx = game.guardPositions[game.playerPositions[this.playerName].floor].pos.y * 4 + game.guardPositions[game.playerPositions[this.playerName].floor].pos.x
+      if (game.playerPositions[this.playerName].tileIdx > 3 && !walls.top && game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 4].revealed && gIdx !== game.playerPositions[this.playerName].tileIdx - 4)
+        choice1.innerText = "Fel"
+      else
+        choice1.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 3 && !walls.right && game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 1].revealed && gIdx !== game.playerPositions[this.playerName].tileIdx +1)
+        choice2.innerText = "Jobbra"
+      else
+        choice2.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx < 12 && !walls.bottom && game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx + 4].revealed && gIdx !== game.playerPositions[this.playerName].tileIdx + 4)
+        choice3.innerText = "Le"
+      else
+        choice3.hidden = true
+      if (game.playerPositions[this.playerName].tileIdx % 4 !== 0 && !walls.left && game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx - 1].revealed && gIdx !== game.playerPositions[this.playerName].tileIdx - 1)
+      { choice4.hidden = false
+        choice4.innerText = "Balra"}
+      else
+        choice4.hidden = true
+
+      this.animatation = true
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {if (event.key === 'Escape') {event.preventDefault();}});
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+
+      if (choice === "1")
+        this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx - 4)
+      if (choice === "2")
+        this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx + 1)
+      if (choice === "3")
+        this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx + 4)
+      if (choice === "4")
+        this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx - 1)
+
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      choice4.hidden = true
+      this.animatation = false
+    }
+
+    if (game.playerCharacter[this.playerName] === "JuicerHard" && game.floors[game.playerPositions[this.playerName].floor].alarms.find(x => x === game.playerPositions[this.playerName].tileIdx) !== undefined && game.juicerToken === 0){
+      updatedGame.floors[updatedGame.playerPositions[this.playerName].floor].alarms = updatedGame.floors[updatedGame.playerPositions[this.playerName].floor].alarms.filter((a:number) => a !== updatedGame.playerPositions[this.playerName].tileIdx);
+      if (updatedGame.floors[updatedGame.playerPositions[this.playerName].floor].alarms.length === 0){
+        updatedGame.guardPositions[updatedGame.playerPositions[this.playerName].floor].target = updatedGame.guardPositions[updatedGame.playerPositions[this.playerName].floor].moves[0]
+        updatedGame.guardPositions[updatedGame.playerPositions[this.playerName].floor].moves = updatedGame.guardPositions[updatedGame.playerPositions[this.playerName].floor].moves.slice(1)
+      } else {
+        this.checkClosestAlarm(updatedGame, updatedGame.guardPositions[updatedGame.playerPositions[this.playerName].floor], updatedGame.playerPositions[this.playerName].floor, updatedGame.playerPositions[this.playerName].floor)
+      }
+      updatedGame.juicerToken = 1
+    }
+
+    if (game.playerCharacter[this.playerName] === "JuicerHard" && game.floors[game.playerPositions[this.playerName].floor].alarms.find(x => x === game.playerPositions[this.playerName].tileIdx) === undefined && game.juicerToken === 1){
+      this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+      updatedGame.juicerToken = 0
     }
 
     if (updatedGame)

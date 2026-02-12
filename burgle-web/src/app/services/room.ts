@@ -73,6 +73,7 @@ export interface GameState {
   timelock: string;
   cameraloop: string;
   gymnastics: string;
+  juicerToken: number;
 }
 
 export type Room = {

@@ -111,7 +111,8 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
     emp: "",
     timelock: "",
     cameraloop: "",
-    gymnastics: ""
+    gymnastics: "",
+    juicerToken: 0
   };
 }
 
