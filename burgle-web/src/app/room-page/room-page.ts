@@ -16,101 +16,103 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
     @if (room$ | async; as room) {
       <!--suppress ALL -->
       <div class="viewport">
-      <div class="app-root" #appRoot>
-      <div class="header-bar">
-        <div class="header-left">
-          <div class="room-info">
-            <h1>{{ getRoomDisplayName(roomId) }}</h1>
-            <div class="status-badge" [class]="room.phase">
-              {{ room.phase === 'lobby' ? 'Várakozás' : 'Játék' }}
-              @if (isSpectator(room)) {
-                (Megfigyelő)
-              }
-            </div>
-          </div>
+        <div class="app-root" #appRoot>
+          <div class="header-bar">
+            <div class="header-left">
+              <div class="room-info">
+                <h1>{{ getRoomDisplayName(roomId) }}</h1>
+                <span class="status-badge" [class]="room.phase">
+                  {{ room.phase === 'lobby' ? 'Várakozás' : 'Játék' }}
+                  @if (isSpectator(room)) {
+                    (Megfigyelő)
+                  }
+                </span>
+              </div>
 
-          <div class="room-details">
-            <div class="detail-item seed-item">
-              <span class="label">Seed:</span>
-              @if (room.phase === 'lobby') {
-                <input class="seed-input" [value]="room.seed" (change)="updateSeed($event)"/>
-              } @else {
-                <span class="value">{{ room.seed }}</span>
-              }
-            </div>
+              <div class="room-details">
+                <div class="detail-item seed-item">
+                  <span class="label">Seed:</span>
+                  @if (room.phase === 'lobby') {
+                    <input class="seed-input" [value]="room.seed" (change)="updateSeed($event)"/>
+                  } @else {
+                    <span class="value">{{ room.seed }}</span>
+                  }
+                </div>
 
-            <div class="floorToggle">
-            <span class="lbl">2</span>
+                <div class="floorToggle">
+                  <span class="lbl">2</span>
 
-            <label class="switch">
-              <input
-                type="checkbox"
-                [checked]="(room.floorCount ?? 3) === 3"
-                [disabled]="room.phase !== 'lobby'"
-                (change)="onFloorCountToggle($event, room)"
-              />
-              <span class="slider"></span>
-            </label>
+                  <label class="switch">
+                    <input
+                      type="checkbox"
+                      [checked]="(room.floorCount ?? 3) === 3"
+                      [disabled]="room.phase !== 'lobby'"
+                      (change)="onFloorCountToggle($event, room)"
+                    />
+                    <span class="slider"></span>
+                  </label>
 
-            <span class="lbl">3</span>
-          </div>
+                  <span class="lbl">3</span>
+                </div>
 
 
-          <div class="detail-item players-item">
-              <span class="label">Játékosok:</span>
-              <div class="player-chips">
-                @for (p of room.players; track p) {
-                  <div class="player-chip" [class.is-me]="p === playerName">
-                    <span class="player-icon">{{ p[0].toUpperCase() }}</span>
-                    {{ p }}
+                <div class="detail-item players-item">
+                  <span class="label">Játékosok:</span>
+                  <div class="player-chips">
+                    @for (p of room.players; track p) {
+                      <div class="player-chip" [class.is-me]="p === playerName">
+                        <span class="player-icon">{{ p[0].toUpperCase() }}</span>
+                        {{ p }}
+                      </div>
+                    }
                   </div>
-                }
+                </div>
               </div>
             </div>
+
+            <div class="header-actions">
+
+              <button class="btn btn-outline" (click)="toggleFullscreen()">
+                {{ isFullscreen ? 'Kilépés teljes képernyőből' : 'Teljes képernyő' }}
+              </button>
+
+              <button class="btn btn-outline"
+                      (click)="leave()"
+                      [disabled]="room.phase !== 'lobby' && !isSpectator(room)"
+                      [title]="room.phase !== 'lobby' && !isSpectator(room) ? 'Játék közben nem lehet kilépni' : ''"
+              >← Kilépés
+              </button>
+
+              @if (room.phase !== 'lobby' || isSpectator(room)) {
+                <button class="btn btn-outline" (click)="router.navigate(['/'])">Főoldal</button>
+              }
+
+              @if (room.phase === 'play' && !isSpectator(room)) {
+                <button class="btn btn-danger" (click)="reset(roomId)">Reset</button>
+              }
+            </div>
           </div>
-        </div>
 
-        <div class="header-actions">
+          @if (showCharacterDialog && needsCharacter(room)) {
+            <div class="modal-backdrop"
+                 style="position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:9999;">
+              <div class="modal-card"
+                   style="background:#111; color:#fff; padding:24px; border-radius:14px; width:min(900px, 92vw); box-shadow:0 10px 40px rgba(0,0,0,.5);">
+                <h3 style="margin:0 0 8px;">Válassz karaktert</h3>
+                <p style="margin:0 0 16px; opacity:.9;">
+                  A köröd csak ezután indul – amíg nem választasz, nem tudsz lépni.
+                </p>
 
-          <button class="btn btn-outline" (click)="toggleFullscreen()">
-            {{ isFullscreen ? 'Kilépés teljes képernyőből' : 'Teljes képernyő' }}
-          </button>
-
-          <button class="btn btn-outline"
-                  (click)="leave()"
-                  [disabled]="room.phase !== 'lobby' && !isSpectator(room)"
-                  [title]="room.phase !== 'lobby' && !isSpectator(room) ? 'Játék közben nem lehet kilépni' : ''"
-          >← Kilépés
-          </button>
-
-          @if (room.phase !== 'lobby' || isSpectator(room)) {
-            <button class="btn btn-outline" (click)="router.navigate(['/'])">Főoldal</button>
-          }
-
-          @if (room.phase === 'play' && !isSpectator(room)) {
-            <button class="btn btn-danger" (click)="reset(roomId)">Reset</button>
-          }
-        </div>
-      </div>
-
-        @if (showCharacterDialog && needsCharacter(room)) {
-          <div class="modal-backdrop" style="position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:9999;">
-            <div class="modal-card" style="background:#111; color:#fff; padding:24px; border-radius:14px; width:min(900px, 92vw); box-shadow:0 10px 40px rgba(0,0,0,.5);">
-              <h3 style="margin:0 0 8px;">Válassz karaktert</h3>
-              <p style="margin:0 0 16px; opacity:.9;">
-                A köröd csak ezután indul – amíg nem választasz, nem tudsz lépni.
-              </p>
-
-              <!-- vízszintes, 1 soros, húzható karakter-sáv -->
-              <div style=" display:flex;flex-wrap:nowrap;gap:16px;overflow-x:auto;overflow-y:hidden;padding:6px 6px 14px;
+                <!-- vízszintes, 1 soros, húzható karakter-sáv -->
+                <div style=" display:flex;flex-wrap:nowrap;gap:16px;overflow-x:auto;overflow-y:hidden;padding:6px 6px 14px;
                       -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;scrollbar-width:thin;">
-                @for (c of characterList; track c) {
-                  @let imgUrl = getOrLoadTileImage('character-' + c);
+                  @for (c of characterList; track c) {
+                    @let imgUrl = getOrLoadTileImage('character-' + c);
 
-                  <button
-                    (click)="selectCharacter(room, c)"
-                    [disabled]="isCharacterTaken(room, c)"
-                    style="
+                    <button
+                      (click)="selectCharacter(room, c)"
+                      [disabled]="isCharacterTaken(room, c)"
+                      style="
                             flex:0 0 auto;
                             width:300px;
                             padding:14px;
@@ -126,27 +128,27 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                             scroll-snap-align:start;
                             transition:transform .08s ease;
       "
-                    [style.opacity]="isCharacterTaken(room, c) ? '0.45' : '1'"
-                    [style.cursor]="isCharacterTaken(room, c) ? 'not-allowed' : 'pointer'"
-                    title="{{ isCharacterTaken(room, c) ? 'Foglalt' : 'Választás' }}"
-                  >
-                    @if (imgUrl) {
-                      <img
-                        [ngSrc]="imgUrl"
-                        width="190"
-                        height="190"
-                        style="
+                      [style.opacity]="isCharacterTaken(room, c) ? '0.45' : '1'"
+                      [style.cursor]="isCharacterTaken(room, c) ? 'not-allowed' : 'pointer'"
+                      title="{{ isCharacterTaken(room, c) ? 'Foglalt' : 'Választás' }}"
+                    >
+                      @if (imgUrl) {
+                        <img
+                          [ngSrc]="imgUrl"
+                          width="190"
+                          height="190"
+                          style="
             width:275px;
             height:275px;
             border-radius:14px;
             background:#0f0f0f;
             object-fit:contain;
           "
-                        alt="character {{c}}"
-                      />
-                    } @else {
-                      <div
-                        style="
+                          alt="character {{c}}"
+                        />
+                      } @else {
+                        <div
+                          style="
             width:190px;
             height:190px;
             border-radius:14px;
@@ -157,501 +159,545 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
             opacity:.85;
             font-size:28px;
           "
-                      >
-                        ?
-                      </div>
-                    }
-
-                    <div style="text-align:center; line-height:1.1;">
-                      @if (isCharacterTaken(room, c)) {
-                        <div style="font-weight:500; opacity:.85; margin-top:4px;">(foglalt)</div>
+                        >
+                          ?
+                        </div>
                       }
-                    </div>
-                  </button>
-                }
+
+                      <div style="text-align:center; line-height:1.1;">
+                        @if (isCharacterTaken(room, c)) {
+                          <div style="font-weight:500; opacity:.85; margin-top:4px;">(foglalt)</div>
+                        }
+                      </div>
+                    </button>
+                  }
+                </div>
               </div>
             </div>
-          </div>
-        }
+          }
 
-      <div class="main-content">
-        @if (room.phase === 'lobby') {
-          <div class="lobby-start">
-            <button class="btn btn-primary btn-large" (click)="start(room)">Játék indítása</button>
-          </div>
-        } @else if (room.phase === 'play') {
-          <div class="game-layout">
-            <div class="side-panel-left">
-              <div class="tools-inner" #toolsInner>
-                @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(this.lootToolIndex, 3); track $index) {
-                  @let imgUrl = getOrLoadTileImage('loot-' + loot);
-                  @if (imgUrl && imgUrl != '') {
-                    <img class="square-img" [ngSrc]="imgUrl" [style.--i]="(room.game?.inventory?.[playerName]?.tool?.length ?? 0) + $index" width="1" height="1" alt="{{ loot }}"/>
+          <div class="main-content">
+            @if (room.phase === 'lobby') {
+              <div class="lobby-start">
+                <button class="btn btn-primary btn-large" (click)="start(room)">Játék indítása</button>
+              </div>
+            } @else if (room.phase === 'play') {
+              <div class="game-layout">
+                <div class="side-panel-left">
+                  <div class="tools-inner" #toolsInner>
+                    @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(this.lootToolIndex, 3); track $index) {
+                      @let imgUrl = getOrLoadTileImage('loot-' + loot);
+                      @if (imgUrl && imgUrl != '') {
+                        <img class="square-img" [ngSrc]="imgUrl"
+                             [style.--i]="(room.game?.inventory?.[playerName]?.tool?.length ?? 0) + $index" width="1"
+                             height="1" alt="{{ loot }}"/>
+                      } @else {
+                        <span class="tile-type">{{ loot }}</span>
+                      }
+                    }
+                    @for (tool of room.game?.inventory?.[playerName]?.tool?.slice(Math.max(0, this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)), 3 + this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)); track $index) {
+                      @let imgUrl = getOrLoadTileImage('tool-' + tool);
+                      @if (imgUrl && imgUrl != '') {
+                        <img class="square-img"
+                             [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}"
+                             (click)="toolClick(room, tool)">
+                      } @else {
+                        <span class="tile-type">{{ tool }}</span>
+                      }
+                    }
+                    @if (this.lootToolIndex > 0) {
+                      <button class="scroll-btn scroll-up"
+                              (click)="this.lootToolIndex= Math.max(0, this.lootToolIndex-1)">▲
+                      </button>
+                    }
+                    @if (this.lootToolIndex < (room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) - 3) {
+                      <button class="scroll-btn scroll-down"
+                              (click)="this.lootToolIndex= Math.min((room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3 ,this.lootToolIndex + 1)">
+                        ▼
+                      </button>
+                    }
+                  </div>
+                </div>
+                <div class="game-area">
+                  @if (room.game) {
+                    <div class="floor-navigation">
+                      <button class="nav-btn" [disabled]="activeFloorIdx === 0" (click)="changeFloor(-1)">◀</button>
+                      <div class="floor-indicator">{{ activeFloorIdx + 1 }}. szint</div>
+                      <button class="nav-btn" [disabled]="activeFloorIdx === (floorCount - 1)" (click)="changeFloor(1)">
+                        ▶
+                      </button>
+                    </div>
+
+                    <div class="floors-container">
+                      @let floor = room.game.floors[activeFloorIdx];
+                      <div class="floor">
+                        <div class="grid">
+                          @for (tile of floor.tiles; track $index; let tIdx = $index) {
+                            <div class="tile"
+                                 [class.revealed]="tile.revealed"
+                                 [class.clickable]="canInteract(room, activeFloorIdx, tIdx)"
+                                 [class.edge-top]="tIdx < 4"
+                                 [class.edge-bottom]="tIdx >= 12"
+                                 [class.edge-left]="tIdx % 4 === 0"
+                                 [class.edge-right]="tIdx % 4 === 3"
+                                 (click)="handleTileClick(room, activeFloorIdx, tIdx)">
+
+                              <!-- Movement arrows for current tile -->
+                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                <div class="arrows-container">
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'up')) {
+                                    <div class="arrow arrow-up" (click)="handleArrowMove($event, room, 'up')">▲</div>
+                                  }
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'right')) {
+                                    <div class="arrow arrow-right" (click)="handleArrowMove($event, room, 'right')">▶
+                                    </div>
+                                  }
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'bottom')) {
+                                    <div class="arrow arrow-bottom" (click)="handleArrowMove($event, room, 'bottom')">▼
+                                    </div>
+                                  }
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'left')) {
+                                    <div class="arrow arrow-left" (click)="handleArrowMove($event, room, 'left')">◀
+                                    </div>
+                                  }
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'floorUp')) {
+                                    <div class="arrow arrow-floor-up"
+                                         (click)="handleArrowMove($event, room, 'floorUp')">↑
+                                    </div>
+                                  }
+                                  @if (canMove(room, activeFloorIdx, tIdx, 'floorDown')) {
+                                    <div class="arrow arrow-floor-down"
+                                         (click)="handleArrowMove($event, room, 'floorDown')">
+                                      ↓
+                                    </div>
+                                  }
+                                </div>
+                              }
+
+                              @if (((activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs') || tile.thermalStairsDown || tile.type === 'Walkway') && tile.revealed) {
+                                <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
+                              }
+                              @if (((room.game.floors[activeFloorIdx].tiles[tIdx].type === 'Stairs') || tile.thermalStairsUp) && tile.revealed) {
+                                <div class="down-exit-mark" title="Feljárat">▲</div>
+                              }
+                              @if (tile.revealed && tile.stealthtoken > 0) {
+                                <div class="stealthtokennumber" title="Stealthtoken mennyiség">{{ tile.stealthtoken }}
+                                </div>
+                              }
+                              @if (tile.type === 'ComputerFingerprint' && tile.revealed) {
+                                <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackFingerprint }}
+                                  @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                    <button (click)="addToken(room,'fingerprint')"
+                                            class="tokennumber plustoken btn btn-primary">+1
+                                    </button>
+                                  }
+                                </div>
+                              }
+                              @if (tile.type === 'ComputerMotion' && tile.revealed) {
+                                <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackMotion }}
+                                  @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                    <button (click)="addToken(room,'motion')"
+                                            class="tokennumber plustoken btn btn-primary">
+                                      +1
+                                    </button>
+                                  }
+                                </div>
+                              }
+                              @if (tile.type === 'ComputerLaser' && tile.revealed) {
+                                <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackLaser }}
+                                  @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
+                                    <button (click)="addToken(room,'laser')"
+                                            class="tokennumber plustoken btn btn-primary">
+                                      +1
+                                    </button>
+                                  }
+                                </div>
+                              }
+                              @if (tile.type === 'Safe' && tile.revealed) {
+                                <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}
+                                  @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx) || (room.game?.playerCharacter?.[playerName] === "PetermanHard" && (activeFloorIdx > 0 && isCurrentPlayerTile(room, activeFloorIdx - 1, tIdx)) || (activeFloorIdx < (floorCount - 1) && isCurrentPlayerTile(room, activeFloorIdx + 1, tIdx)))) {
+                                    <button (click)="addToken(room,'safe', activeFloorIdx, tIdx)"
+                                            class="tokennumber plustoken btn btn-primary">+1
+                                    </button>
+                                  }
+                                </div>
+                              }
+                              @if (tile.type === 'Keypad' && tile.revealed) {
+                                <div class="tokennumber" title="Locked">
+                                  {{ KeypadOpened(room, activeFloorIdx, tIdx) ? '🟩' : '🔒' }}
+                                </div>
+                              }
+
+                              <!-- Show image for revealed tiles if matching asset exists; otherwise fall back to text -->
+                              @if (tile.revealed) {
+                                @let imgUrl = getOrLoadTileImage('room-' + tile.type);
+                                @if (imgUrl && imgUrl != '') {
+                                  <img class="tile-img" [ngSrc]="imgUrl" width="1" height="1" alt="{{ tile.type }}"/>
+                                } @else {
+                                  <span class="tile-type">{{ tile.type }}</span>
+                                }
+                              } @else {
+                                <span class="tile-type">?</span>
+                              }
+
+                              <!-- Guard figure if a guard is on this tile -->
+                              @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
+                                <div class="guard-figure" title="Őr">🛡️</div>
+                              }
+                              <!-- Crosshair if this tile is a guard's target -->
+                              @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
+                                <div class="guard-target" title="Őr célpont">🎯</div>
+                              }
+                              @if (isAlarmOnTile(room, activeFloorIdx, tIdx)) {
+                                <div class="guard-target" title="Alarm">🚨</div>
+                              }
+
+                              <div class="walls">
+                                <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
+                                <div class="wall wall-right" [class.is-real]="tile.walls.right"></div>
+                                <div class="wall wall-bottom" [class.is-real]="tile.walls.bottom"></div>
+                                <div class="wall wall-left" [class.is-real]="tile.walls.left"></div>
+                              </div>
+                              <div class="players-on-tile">
+                                @for (pName of getPlayersOnTile(room, activeFloorIdx, tIdx); track pName) {
+                                  <div class="player-pawn" [title]="pName"
+                                       [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
+                                  </div>
+                                }
+                                @if (tile.cat) {
+                                  <div class="player-pawn" title="Cat">🐱</div>
+                                }
+                                @if (tile.gold) {
+                                  <div class="player-pawn" title="Gold">🧈</div>
+                                }
+                                @if (tile.notLooted) {
+                                  <div class="player-pawn" title="Loot">🎁</div>
+                                }
+                              </div>
+                              @if (tile.revealed) {
+                                @if (tile.type !== 'Safe') {
+                                  <div [class.numberCracked]="tile.cracked" class="tile-number number-on-tile"
+                                       [title]="tile.number">{{ tile.number }}
+                                  </div>
+                                } @else if (isCurrentPlayerTile(room, activeFloorIdx, tIdx) || (room.game?.playerCharacter?.[playerName] === "PetermanHard" && (activeFloorIdx > 0 && isCurrentPlayerTile(room, activeFloorIdx - 1, tIdx)) || (activeFloorIdx < (floorCount - 1) && isCurrentPlayerTile(room, activeFloorIdx + 1, tIdx)))) {
+                                  <button (click)="crackSafe(room, activeFloorIdx, tIdx)"
+                                          class="tokennumber plustoken crackbtn btn btn-primary">🔑
+                                  </button>
+                                }
+                              }
+
+                              @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'up')) {
+                                <div class="guard-path-bar bar-up"></div>
+                              }
+                              @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'right')) {
+                                <div class="guard-path-bar bar-right"></div>
+                              }
+                              @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'down')) {
+                                <div class="guard-path-bar bar-down"></div>
+                              }
+                              @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'left')) {
+                                <div class="guard-path-bar bar-left"></div>
+                              }
+                              @if (isGuardReachableThisTurn(room, activeFloorIdx, tIdx)) {
+                                <div class="guard-path-dot"></div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
                   } @else {
-                    <span class="tile-type">{{loot}}</span>
+                    <p style="padding: 20px; text-align: center;">Pálya betöltése...</p>
                   }
-                }
-                @for (tool of room.game?.inventory?.[playerName]?.tool?.slice(Math.max(0, this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)), 3 + this.lootToolIndex - (room.game?.inventory?.[playerName]?.loot?.length ?? 0)); track $index) {
-                  @let imgUrl = getOrLoadTileImage('tool-' + tool);
-                  @if (imgUrl && imgUrl != '') {
-                  <img class="square-img"
-                       [ngSrc]="imgUrl" width="1" height="1" [style.--i]="$index" alt="{{tool}}" (click)="toolClick(room, tool)">
-                  }@else {
-                    <span class="tile-type">{{tool}}</span>
-                  }
-                }
-                @if (this.lootToolIndex > 0){
-                  <button class="scroll-btn scroll-up" (click)="this.lootToolIndex= Math.max(0, this.lootToolIndex-1)">▲</button>}
-                @if (this.lootToolIndex < (room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3) {
-                  <button class="scroll-btn scroll-down" (click)="this.lootToolIndex= Math.min((room.game?.inventory?.[playerName]?.loot?.length ?? 0) + (room.game?.inventory?.[playerName]?.tool?.length ?? 0) -3 ,this.lootToolIndex + 1)">▼</button>}
                 </div>
-            </div>
-            <div class="game-area">
-              @if (room.game) {
-                <div class="floor-navigation">
-                  <button class="nav-btn" [disabled]="activeFloorIdx === 0" (click)="changeFloor(-1)">◀</button>
-                  <div class="floor-indicator">{{ activeFloorIdx + 1 }}. szint</div>
-                  <button class="nav-btn" [disabled]="activeFloorIdx === (floorCount - 1)" (click)="changeFloor(1)">▶</button>
-                </div>
+                <div class="side-panel-right">
+                  <div class="hacks panel-top">
 
-                <div class="floors-container">
-                  @let floor = room.game.floors[activeFloorIdx];
-                  <div class="floor">
-                    <div class="grid">
-                      @for (tile of floor.tiles; track $index; let tIdx = $index) {
-                        <div class="tile"
-                             [class.revealed]="tile.revealed"
-                             [class.clickable]="canInteract(room, activeFloorIdx, tIdx)"
-                             [class.edge-top]="tIdx < 4"
-                             [class.edge-bottom]="tIdx >= 12"
-                             [class.edge-left]="tIdx % 4 === 0"
-                             [class.edge-right]="tIdx % 4 === 3"
-                             (click)="handleTileClick(room, activeFloorIdx, tIdx)">
+                    <div class="stats-row">
+                      <span class="label">Motion hacks</span>
+                      <span class="value">{{ room.game?.hackMotion }}</span>
+                    </div>
 
-                          <!-- Movement arrows for current tile -->
-                          @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                            <div class="arrows-container">
-                              @if (canMove(room, activeFloorIdx, tIdx, 'up')) {
-                                <div class="arrow arrow-up" (click)="handleArrowMove($event, room, 'up')">▲</div>
-                              }
-                              @if (canMove(room, activeFloorIdx, tIdx, 'right')) {
-                                <div class="arrow arrow-right" (click)="handleArrowMove($event, room, 'right')">▶</div>
-                              }
-                              @if (canMove(room, activeFloorIdx, tIdx, 'bottom')) {
-                                <div class="arrow arrow-bottom" (click)="handleArrowMove($event, room, 'bottom')">▼
-                                </div>
-                              }
-                              @if (canMove(room, activeFloorIdx, tIdx, 'left')) {
-                                <div class="arrow arrow-left" (click)="handleArrowMove($event, room, 'left')">◀</div>
-                              }
-                              @if (canMove(room, activeFloorIdx, tIdx, 'floorUp')) {
-                                <div class="arrow arrow-floor-up" (click)="handleArrowMove($event, room, 'floorUp')">↑
-                                </div>
-                              }
-                              @if (canMove(room, activeFloorIdx, tIdx, 'floorDown')) {
-                                <div class="arrow arrow-floor-down"
-                                     (click)="handleArrowMove($event, room, 'floorDown')">
-                                  ↓
-                                </div>
-                              }
-                            </div>
-                          }
+                    <div class="stats-row">
+                      <span class="label">Laser hacks</span>
+                      <span class="value">{{ room.game?.hackLaser }}</span>
+                    </div>
 
-                          @if (((activeFloorIdx > 0 && room.game.floors[activeFloorIdx - 1].tiles[tIdx].type === 'Stairs') || tile.thermalStairsDown || tile.type === 'Walkway') && tile.revealed) {
-                            <div class="down-exit-mark" title="Lejárat az alsó szintről">▼</div>
-                          }
-                          @if (((room.game.floors[activeFloorIdx].tiles[tIdx].type === 'Stairs') || tile.thermalStairsUp) && tile.revealed) {
-                            <div class="down-exit-mark" title="Feljárat">▲</div>
-                          }
-                          @if (tile.revealed && tile.stealthtoken > 0) {
-                            <div class="stealthtokennumber" title="Stealthtoken mennyiség">{{ tile.stealthtoken }}</div>
-                          }
-                          @if (tile.type === 'ComputerFingerprint' && tile.revealed) {
-                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackFingerprint }}
-                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'fingerprint')"
-                                        class="tokennumber plustoken btn btn-primary">+1
-                                </button>
-                              }
-                            </div>
-                          }
-                          @if (tile.type === 'ComputerMotion' && tile.revealed) {
-                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackMotion }}
-                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'motion')" class="tokennumber plustoken btn btn-primary">
-                                  +1
-                                </button>
-                              }
-                            </div>
-                          }
-                          @if (tile.type === 'ComputerLaser' && tile.revealed) {
-                            <div class="tokennumber" title="Token mennyiség">{{ room.game?.hackLaser }}
-                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'laser')" class="tokennumber plustoken btn btn-primary">
-                                  +1
-                                </button>
-                              }
-                            </div>
-                          }
-                          @if (tile.type === 'Safe' && tile.revealed) {
-                            <div class="tokennumber" title="Token mennyiség">{{ tile.tokens }}
-                              @if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                                <button (click)="addToken(room,'safe', activeFloorIdx, tIdx)"
-                                        class="tokennumber plustoken btn btn-primary">+1
-                                </button>
-                              }
-                            </div>
-                          }
-                          @if (tile.type === 'Keypad' && tile.revealed) {
-                            <div class="tokennumber" title="Locked">
-                              {{ KeypadOpened(room, activeFloorIdx, tIdx) ? '🟩' : '🔒' }}
-                            </div>
-                          }
+                    <div class="stats-row">
+                      <span class="label">Fingerprint hacks</span>
+                      <span class="value">{{ room.game?.hackFingerprint }}</span>
+                    </div>
 
-                          <!-- Show image for revealed tiles if matching asset exists; otherwise fall back to text -->
-                          @if (tile.revealed) {
-                            @let imgUrl = getOrLoadTileImage('room-' + tile.type);
-                            @if (imgUrl && imgUrl != '') {
-                              <img class="tile-img" [ngSrc]="imgUrl" width="1" height="1" alt="{{ tile.type }}"/>
-                            } @else {
-                              <span class="tile-type">{{ tile.type }}</span>
-                            }
-                          } @else {
-                            <span class="tile-type">?</span>
-                          }
+                    <div class="stats-row"></div>
 
-                          <!-- Guard figure if a guard is on this tile -->
-                          @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
-                            <div class="guard-figure" title="Őr">🛡️</div>
-                          }
-                          <!-- Crosshair if this tile is a guard's target -->
-                          @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
-                            <div class="guard-target" title="Őr célpont">🎯</div>
-                          }
-                          @if (isAlarmOnTile(room, activeFloorIdx, tIdx)) {
-                            <div class="guard-target" title="Alarm">🚨</div>
-                          }
+                    <div class="stats-row">
+                      <span class="label">Guard speed</span>
+                      <span
+                        class="value">{{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</span>
+                    </div>
 
-                          <div class="walls">
-                            <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
-                            <div class="wall wall-right" [class.is-real]="tile.walls.right"></div>
-                            <div class="wall wall-bottom" [class.is-real]="tile.walls.bottom"></div>
-                            <div class="wall wall-left" [class.is-real]="tile.walls.left"></div>
-                          </div>
-                          <div class="players-on-tile">
-                            @for (pName of getPlayersOnTile(room, activeFloorIdx, tIdx); track pName) {
-                              <div class="player-pawn" [title]="pName"
-                                   [class.is-me]="pName === playerName">{{ pName[0].toUpperCase() }}
-                              </div>
-                            }
-                            @if (tile.cat) {
-                              <div class="player-pawn" title="Cat">🐱</div>}
-                            @if (tile.gold) {
-                              <div class="player-pawn" title="Cat">🧈</div>}
-                          </div>
-                          @if (tile.revealed) {
-                            @if (tile.type !== 'Safe') {
-                              <div [class.numberCracked]="tile.cracked" class="tile-number number-on-tile"
-                                   [title]="tile.number">{{ tile.number }}
-                              </div>
-                            } @else if (isCurrentPlayerTile(room, activeFloorIdx, tIdx)) {
-                              <button (click)="crackSafe(room, activeFloorIdx, tIdx)"
-                                      class="tokennumber plustoken crackbtn btn btn-primary">🔑
-                              </button>
-                            }
-                          }
+                    <div class="dice-container panel-dice">
+                      @for (die of diceValues; track $index) {
+                        <div class="dice">{{ diceMap[die] }}</div>
+                      }
+                    </div>
 
-                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'up')) {
-                            <div class="guard-path-bar bar-up"></div>
+                    <div class="separator">--- Aktív eventek ---</div>
+
+                    <div class="stats-row">
+                      @if (room.game?.hackHacker === 1) {
+                        <span class="label">Hacker token aktív!</span>
+                        <span class="value">Felhasználható bármelyik hack tokenként!</span>
+                      }
+                    </div>
+
+                    <div class="stats-row">
+                      @if (room.game?.emp !== "") {
+                        <span class="label">EMP aktív!</span>
+                        <span class="value">Nem működnek a riasztók!</span>
+                      }
+                    </div>
+
+
+                    <div class="stats-row">
+                      @if (room.game?.timelock !== "") {
+                        <span class="label">Time lock aktív!</span>
+                        <span class="value">A lépcsők nem használhatóak!</span>
+                      }
+                    </div>
+
+
+                    <div class="stats-row">
+                      @if (room.game?.cameraloop !== "") {
+                        <span class="label">Video loop aktív!</span>
+                        <span class="value">Nem működnek a kamerák!</span>
+                      }
+                    </div>
+
+
+                    <div class="stats-row">
+                      @if (room.game?.gymnastics !== "") {
+                        <span class="label">Gymnastics aktív!</span>
+                        <span class="value">Walkway használható lépcsőként!</span>
+                      }
+                    </div>
+
+                    <div class="stats-row"></div>
+
+                  </div>
+                  <div class="panel-middle">
+                    <div class="HP">
+                      @for (i of [0, 1, 2]; track $index) {
+                        @let imgUrl = getOrLoadTileImage((i < (room.game?.healths?.[playerName] ?? 0)) ? 'ghost' : 'ghostdead');
+                        @if (imgUrl && imgUrl != '') {
+                          <img [ngSrc]="imgUrl"
+                               width="1" height="1" class="hp-icon" alt="HP"/>
+                        }
+                      }
+                    </div>
+                    <div class="stats-row">
+                      <span class="label">Action Points:</span>
+                      <span class="value">{{ room.game?.currentAP ?? 0 }}</span>
+                    </div>
+
+                    <div class="char-heat-wrapper">
+
+                      @let myChar = room.game?.playerCharacter?.[playerName];
+                      @if (myChar) {
+                        <div class="character-box">
+                          @let cUrl = getOrLoadTileImage('character-' + myChar);
+                          @if (cUrl) {
+                            <img
+                              class="character-img"
+                              [ngSrc]="cUrl"
+                              width="250"
+                              height="250"
+                              alt="my character {{myChar}}"
+                            />
                           }
-                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'right')) {
-                            <div class="guard-path-bar bar-right"></div>
-                          }
-                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'down')) {
-                            <div class="guard-path-bar bar-down"></div>
-                          }
-                          @if (isGuardPathDir(room, activeFloorIdx, tIdx, 'left')) {
-                            <div class="guard-path-bar bar-left"></div>
-                          }
-                          @if (isGuardReachableThisTurn(room, activeFloorIdx, tIdx)) {
-                            <div class="guard-path-dot"></div>
+                          @if (room.game?.juicerToken === 1 && room.game?.playerCharacter?.[playerName] === "JuicerHard") {
+                            <div class="juicerAlarm">🚨</div>
                           }
                         </div>
                       }
+                      <div class="heatmap-container">
+                        <div class="heatmap-grid">
+                          @for (v of generateHeatmap((room.game?.floors?.[activeFloorIdx]?.tiles ?? [])); track $index) {
+                            <div class="heat-cell" [style.background]="colorFromT(v)"
+                                 [class.border-bottom]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.bottom"
+                                 [class.border-right]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.right"
+                                 [class.border-left]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.left"
+                                 [class.border-top]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.top"
+                            ></div>
+                          }
+                        </div>
+                      </div>
                     </div>
+
+
+                  </div>
+                  <div class="panel-bottom endturnbtn">
+                    <button class="btn btn-primary endturnbtn"
+                            [disabled]="!isMyTurn(room) || !canUseCharacterSpell(room)"
+                            (click)="useCharacterSpell(room)">
+                      Use skill
+                    </button>
+                    <button class="btn btn-primary endturnbtn"
+                            [disabled]="!isMyTurn(room)"
+                            (click)="endTurn(room)">
+                      End Turn
+                    </button>
                   </div>
                 </div>
-              } @else {
-                <p style="padding: 20px; text-align: center;">Pálya betöltése...</p>
-              }
-            </div>
-            <div class="side-panel-right">
-              <div class="hacks panel-top">
-
-                <div class="stats-row">
-                  <span class="label">Motion hacks</span>
-                  <span class="value">{{ room.game?.hackMotion }}</span>
-                </div>
-
-                <div class="stats-row">
-                  <span class="label">Laser hacks</span>
-                  <span class="value">{{ room.game?.hackLaser }}</span>
-                </div>
-
-                <div class="stats-row">
-                  <span class="label">Fingerprint hacks</span>
-                  <span class="value">{{ room.game?.hackFingerprint }}</span>
-                </div>
-
-                <div class="stats-row"></div>
-
-                <div class="stats-row">
-                  <span class="label">Guard speed</span>
-                  <span class="value">{{ (room.game?.guardPositions?.[activeFloorIdx]?.speed ?? 0) + (room.game?.floors?.[activeFloorIdx]?.alarms?.length ?? 0) }}</span>
-                </div>
-
-                <div class="dice-container panel-dice">
-                  @for (die of diceValues; track $index) {
-                    <div class="dice">{{ diceMap[die] }}</div>
-                  }
-                </div>
-
-                <div class="separator">--- Aktív eventek ---</div>
-
-                <div class="stats-row">
-                  @if (room.game?.hackHacker === 1) {
-                    <span class="label">Hacker token aktív!</span>
-                    <span class="value">Felhasználható bármelyik hack tokenként!</span>}
-                </div>
-
-                  <div class="stats-row">
-                    @if (room.game?.emp !== "") {
-                    <span class="label">EMP aktív!</span>
-                    <span class="value">Nem működnek a riasztók!</span>}
-                  </div>
-
-
-                  <div class="stats-row">
-                    @if (room.game?.timelock !== "") {
-                    <span class="label">Time lock aktív!</span>
-                    <span class="value">A lépcsők nem használhatóak!</span>}
-                  </div>
-
-
-
-                  <div class="stats-row">
-                    @if (room.game?.cameraloop !== "") {
-                    <span class="label">Video loop aktív!</span>
-                    <span class="value">Nem működnek a kamerák!</span>}
-                  </div>
-
-
-
-                  <div class="stats-row">
-                    @if (room.game?.gymnastics !== "") {
-                    <span class="label">Gymnastics aktív!</span>
-                    <span class="value">Walkway használható lépcsőként!</span>}
-                  </div>
-
-                <div class="stats-row"></div>
-
-              </div>
-              <div class="panel-middle">
-                <div class="HP">
-                  @for (i of [0, 1, 2]; track $index) {
-                    @let imgUrl = getOrLoadTileImage((i < (room.game?.healths?.[playerName] ?? 0)) ? 'ghost' : 'ghostdead');
-                    @if (imgUrl && imgUrl != '') {
-                      <img [ngSrc]="imgUrl"
-                           width="1" height="1" class="hp-icon" alt="HP"/>
-                    }
-                  }
-                </div>
-                <div class="stats-row">
-                  <span class="label">Action Points:</span>
-                  <span class="value">{{ room.game?.currentAP ?? 0 }}</span>
-                </div>
-
-                <div class="char-heat-wrapper">
-
-                  @let myChar = room.game?.playerCharacter?.[playerName];
-                  @if (myChar) {
-                    <div class="character-box">
-                      @let cUrl = getOrLoadTileImage('character-' + myChar);
-                      @if (cUrl) {
-                        <img
-                          class="character-img"
-                          [ngSrc]="cUrl"
-                          width="250"
-                          height="250"
-                          alt="my character {{myChar}}"
-                        />
-                      }
-                      @if (room.game?.juicerToken === 1 && room.game?.playerCharacter?.[playerName] === "JuicerHard") {<div class="juicerAlarm">🚨</div>}
-                    </div>
-                  }
-                  <div class="heatmap-container">
-                <div class="heatmap-grid">
-                  @for (v of generateHeatmap((room.game?.floors?.[activeFloorIdx]?.tiles ?? [])); track $index) {
-                    <div class="heat-cell" [style.background]="colorFromT(v)"
-                         [class.border-bottom]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.bottom"
-                         [class.border-right]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.right"
-                         [class.border-left]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.left"
-                         [class.border-top]="room.game?.floors?.[activeFloorIdx]?.tiles?.[$index]?.walls?.top"
-                    ></div>
-                  }
-                </div>
-                </div>
-                </div>
-
-
-              </div>
-              <div class="panel-bottom endturnbtn">
-                <button class="btn btn-primary endturnbtn"
-                        [disabled]="!isMyTurn(room) || !canUseCharacterSpell(room)"
-                        (click)="useCharacterSpell(room)">
-                  Use skill
-                </button>
-                <button class="btn btn-primary endturnbtn"
-                        [disabled]="!isMyTurn(room)"
-                        (click)="endTurn(room)">
-                  End Turn
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-      </div>
-
-      @if (showAPDialog) {
-        <div class="ap-dialog-backdrop">
-          <div class="ap-dialog">
-            <h3>Mennyi Action Pointot használsz?</h3>
-            <p>(1 AP → Alarm aktiválódik, 2 AP → biztonságos)</p>
-
-            <div class="ap-dialog-buttons">
-              <button class="btn btn-danger" (click)="resolveAPDialog(false)">1 AP</button>
-              <button class="btn btn-success" (click)="resolveAPDialog(true)">2 AP</button>
-            </div>
-          </div>
-        </div>
-      }
-        <dialog id="choiceDialog">
-          <form method="dialog">
-            <div class="dialog-body" >
-              <p class="ap-dialog">Mit szeretnél csinálni?</p>
-              <select id="choice-select" class="form-select" hidden></select>
-              <button id="choice-1" class="btn btn-success" value="1">1</button>
-              <button id="choice-2" class="btn btn-success" value="2">2</button>
-              <button id="choice-3" class="btn btn-success" value="3">3</button>
-              <button id="choice-4" class="btn btn-success" value="4" hidden>4</button>
-              <button id="choice-5" class="btn btn-success" value="5" hidden>5</button>
-              <button id="choice-6" class="btn btn-success" value="6" hidden>6</button>
-              <button id="choice-cancel" class="btn btn-danger" value="Cancel">Mégse</button>
-            </div>
-          </form>
-        </dialog>
-
-        @if (showBlueprintDialog) {
-          <div class="overlay">
-            <div class="modal">
-              <h4>{{ blueprintHeaderText }}</h4>
-
-              <div class="floorTabs">
-                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0">1. szint</button>
-                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1">2. szint</button>
-                @if (room.floorCount === 3) {
-                <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3. szint</button>}
-              </div>
-
-              @let floor = room.game?.floors?.[blueprintFloorIdx];
-              <div class="blueprintgrid">
-                @for (tile of floor?.tiles; track $index; let tIdx = $index) {
-                  <button
-                    class="cell"
-                    (click)="resolveBlueprintTarget(blueprintFloorIdx, tIdx, tile.revealed)"
-                    [class.revealed]="tile.revealed"
-                    [disabled]="tile.revealed || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
-                    title="{{ tile.revealed ? tile.type : '?' }}"
-                    [class.hawkCurrent]="(isCurrentPlayerTile(room, blueprintFloorIdx, tIdx) && blueprintAllowedMask !== null)"
-                    [class.bpdisabled]="tile.revealed || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
-                  >
-                    <span style="font-size:18px;">@if (tile.revealed) { {{ tile.type }} } @else { ? }</span>
-                  </button>
-                }
-              </div>
-            </div>
-          </div>
-        }
-
-        @if (showCrystalDialog) {
-        <div class="overlay">
-          <div class="modal">
-            <h4>Crystal – események sorrendje</h4>
-            <p>Húzd és ejtsd a kártyákat a kívánt sorrendbe (mobilon is).</p>
-
-            <!-- számozás felül -->
-            <div class="crystalNumbers">
-              @for (i of [1,2,3]; track $index) {
-        <div class="crystalNum">{{ i }}.</div>
-        }
-        </div>
-
-        <!-- kártyák sorban, vízszintes drag&drop -->
-        <div class="crystalRow"
-             cdkDropList
-             [cdkDropListData]="crystalCards"
-             cdkDropListOrientation="horizontal"
-             (cdkDropListDropped)="dropCrystal($event)">
-
-          @for (c of crystalCards; track $index) {
-        <div class="crystalCard" cdkDrag>
-          <div class="crystalImgWrap">
-            @let imgUrl = getOrLoadTileImage('event-' + c);
-            @if (imgUrl && imgUrl != '') {
-              <img [ngSrc]="imgUrl" width="1" height="1" alt="{{c}}" />
-              } @else {
-                <!-- fallback, ha még nincs asset -->
-              <div class="crystalFallback">{{ c }}</div>
-              }
-                </div>
-              </div>
-                }
-              </div>
-
-              <div class="crystalActions">
-                <button (click)="confirmCrystalDialog()">Mentés</button>
-              </div>
-              </div>
               </div>
             }
-
-        @if (showEventDialog) {
-          <div class="overlay">
-            <div class="modal">
-              <h4>Esemény</h4>
-
-              @if (currentEventName) {
-                @let imgUrl = getOrLoadTileImage('event-' + currentEventName);
-
-                @if (imgUrl && imgUrl != '') {
-                  <img class="eventImg" [ngSrc]="imgUrl" width="1" height="1" alt="{{currentEventName}}">
-                } @else {
-                  <div class="eventFallback">
-                    {{ currentEventName }}
-                  </div>
-                }
-              }
-
-              <button class="btn eventOk" (click)="confirmEventDialog()">OK</button>
-            </div>
           </div>
-        }
+
+          @if (showAPDialog) {
+            <div class="ap-overlay">
+              <div class="ap-modal">
+                <h3>Mennyi Action Pointot használsz?</h3>
+                <p>(1 AP → Alarm aktiválódik, 2 AP → biztonságos)</p>
+
+                <div class="ap-dialog-buttons">
+                  <button class="btn btn-danger" (click)="resolveAPDialog(false)">1 AP</button>
+                  <button class="btn btn-success" (click)="resolveAPDialog(true)">2 AP</button>
+                </div>
+              </div>
+            </div>
+          }
+          <dialog id="choiceDialog">
+            <form method="dialog">
+              <div class="dialog-body">
+                <p class="ap-dialog">Mit szeretnél csinálni?</p>
+                <select id="choice-select" class="form-select" hidden></select>
+                <button id="choice-1" class="btn btn-success" value="1">1</button>
+                <button id="choice-2" class="btn btn-success" value="2">2</button>
+                <button id="choice-3" class="btn btn-success" value="3">3</button>
+                <button id="choice-4" class="btn btn-success" value="4" hidden>4</button>
+                <button id="choice-5" class="btn btn-success" value="5" hidden>5</button>
+                <button id="choice-6" class="btn btn-success" value="6" hidden>6</button>
+                <div id="choice-img-wrap" class="image-wrapper" hidden>
+                  <img id="choice-img-1" class="tool-choice-img" alt="Option 1" onclick="this.closest('dialog').close('1')">
+                  <img id="choice-img-2" class="tool-choice-img" alt="Option 2" onclick="this.closest('dialog').close('2')">
+                </div>
+                <button id="choice-cancel" class="btn btn-danger" value="Cancel">Mégse</button>
+              </div>
+            </form>
+          </dialog>
+
+          @if (showBlueprintDialog) {
+            <div class="overlay">
+              <div class="modal">
+                <h4>{{ blueprintHeaderText }}</h4>
+
+                <div class="floorTabs">
+                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0">1.
+                    szint
+                  </button>
+                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1">2.
+                    szint
+                  </button>
+                  @if (room.floorCount === 3) {
+                    <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3.
+                      szint
+                    </button>
+                  }
+                </div>
+
+                @let floor = room.game?.floors?.[blueprintFloorIdx];
+                <div class="blueprintgrid">
+                  @for (tile of floor?.tiles; track $index; let tIdx = $index) {
+                    <button
+                      class="cell"
+                      (click)="resolveBlueprintTarget(blueprintFloorIdx, tIdx, tile.revealed)"
+                      [class.revealed]="tile.revealed"
+                      [disabled]="(tile.revealed && !rookMode) || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
+                      title="{{ tile.revealed ? tile.type : '?' }}"
+                      [class.hawkCurrent]="(isCurrentPlayerTile(room, blueprintFloorIdx, tIdx) && blueprintAllowedMask !== null)"
+                      [class.bpdisabled]="(tile.revealed && !rookMode) || (blueprintAllowedMask && !blueprintAllowedMask[blueprintFloorIdx]?.[tIdx])"
+                    >
+                      <span style="font-size:18px;">@if (tile.revealed) {
+                        {{ tile.type }}
+                      } @else {
+                        ?
+                      }</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          @if (showCrystalDialog) {
+            <div class="overlay">
+              <div class="modal">
+                <h4>Crystal – események sorrendje</h4>
+                <p>Húzd és ejtsd a kártyákat a kívánt sorrendbe (mobilon is).</p>
+
+                <!-- számozás felül -->
+                <div class="crystalNumbers">
+                  @for (i of [1, 2, 3]; track $index) {
+                    <div class="crystalNum">{{ i }}.</div>
+                  }
+                </div>
+
+                <!-- kártyák sorban, vízszintes drag&drop -->
+                <div class="crystalRow"
+                     cdkDropList
+                     [cdkDropListData]="crystalCards"
+                     cdkDropListOrientation="horizontal"
+                     (cdkDropListDropped)="dropCrystal($event)">
+
+                  @for (c of crystalCards; track $index) {
+                    <div class="crystalCard" cdkDrag>
+                      <div class="crystalImgWrap">
+                        @let imgUrl = getOrLoadTileImage('event-' + c);
+                        @if (imgUrl && imgUrl != '') {
+                          <img [ngSrc]="imgUrl" width="1" height="1" alt="{{c}}"/>
+                        } @else {
+                          <!-- fallback, ha még nincs asset -->
+                          <div class="crystalFallback">{{ c }}</div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="crystalActions">
+                  <button (click)="confirmCrystalDialog()">Mentés</button>
+                </div>
+              </div>
+            </div>
+          }
+
+          @if (showEventDialog) {
+            <div class="overlay">
+              <div class="modal">
+                <h4>Esemény</h4>
+
+                @if (currentEventName) {
+                  @let imgUrl = getOrLoadTileImage('event-' + currentEventName);
+
+                  @if (imgUrl && imgUrl != '') {
+                    <img class="eventImg" [ngSrc]="imgUrl" width="1" height="1" alt="{{currentEventName}}">
+                  } @else {
+                    <div class="eventFallback">
+                      {{ currentEventName }}
+                    </div>
+                  }
+                }
+
+                <button class="btn eventOk" (click)="confirmEventDialog()">OK</button>
+              </div>
+            </div>
+          }
 
 
-            <style>
-        @import './room-page.scss';
-      </style>
-      </div>
+          <style>
+            @import './room-page.scss';
+          </style>
+        </div>
       </div>
     } @else {
       <div style="padding: 20px;">Betöltés...</div>
@@ -729,6 +775,8 @@ export class RoomPageComponent implements AfterViewInit {
     const scale = Math.min(scaleX, scaleY, 1);
 
     app.style.transform = `scale(${scale})`;
+
+    document.documentElement.style.setProperty('--app-scale', String(scale));
   }
 
 
@@ -1207,7 +1255,7 @@ export class RoomPageComponent implements AfterViewInit {
       for (let i = 0; i < game.keypads.length; i++) {
         if(game.keypads[i].fIdx === fIdx && game.keypads[i].tIdx === tIdx){
           if(!game.keypads[i].opened) {
-            await this.rollDice(game.keypads[i].tries + 1)
+            await this.rollDice(game.keypads[i].tries + 1 + (game.playerCharacter[this.playerName] === "Peterman" ? 1 : 0))
             for (let j = 0; j < game.keypads[i].tries + 1; j++) {
               if (this.diceValues[j] === 6) {
                 game.keypads[i].opened = true;
@@ -1290,6 +1338,12 @@ export class RoomPageComponent implements AfterViewInit {
       game.floors[fIdx].tiles[tIdx].gold = false
       game.inventory[this.playerName].loot.push("Gold")
     }
+
+    if (game.floors[fIdx].tiles[tIdx].notLooted){
+      await this.drawLoot(game, this.playerName)
+      await this.drawTool(game, this.playerName)
+      game.floors[fIdx].tiles[tIdx].notLooted = false
+  }
 
     await this.roomService.setGameState(this.roomId, game);
     return game
@@ -1447,6 +1501,7 @@ export class RoomPageComponent implements AfterViewInit {
 
   actionCount = 0
   private async useActionPoint(game: GameState, cost: number) {
+    if (this.rookMode) return true;
     if (game.currentAP < cost) {return false;}
     game.currentAP -= cost;
     this.actionCount += 1
@@ -1741,6 +1796,7 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     this.hawkPeeked = false
+    this.rookMoved = false
 
     if (game.playerPositions[game.playerOrder[game.currentPlayerIdx]] === undefined && game.startingPosition !== null) {
       game.playerPositions[game.playerOrder[game.currentPlayerIdx]] = { floor: 0, tileIdx: game.startingPosition};
@@ -1980,7 +2036,7 @@ export class RoomPageComponent implements AfterViewInit {
       if(!await this.useActionPoint(room.game, 1)) return;
 
     if(fixDices.length ===   0)
-      await this.rollDice(room.game.floors[activeFloorIdx].tiles[tIdx].tokens);
+      await this.rollDice(room.game.floors[activeFloorIdx].tiles[tIdx].tokens + (room.game.playerCharacter[this.playerName] === "Peterman" ? 1 : 0));
     else
       this.diceValues = fixDices
 
@@ -2009,7 +2065,12 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (!cracks.includes(false)) {
       room.game.floors[activeFloorIdx].safeOpened = true;
-      await this.drawLoot(room.game, this.playerName)
+      if (activeFloorIdx === room.game.playerPositions[this.playerName].floor){
+        await this.drawLoot(room.game, this.playerName)
+        await this.drawTool(room.game, this.playerName)
+      } else {
+        room.game.floors[activeFloorIdx].tiles[tIdx].notLooted = true
+      }
     }
 
     await this.roomService.setGameState(this.roomId, room.game);
@@ -2113,12 +2174,79 @@ export class RoomPageComponent implements AfterViewInit {
   async drawTool(game: GameState, player: string){
     if (!game) return;
 
-    game.inventory[player].tool.push(game.tools[0])
-    game.tools = game.tools.splice(1);
+    if(Object.entries(game.playerCharacter).find(([_, c]) => c === "Rigger" || c === "RiggerHard")){
+      let toolChoice = []
+      toolChoice.push(game.tools[0])
+      game.tools = game.tools.splice(1);
+      if(game.tools.length === 0)
+        game.tools = this.shuffle([...toolsList])
+      toolChoice.push(game.tools[0])
+      game.tools = game.tools.splice(1);
+      if(game.tools.length === 0)
+        game.tools = this.shuffle([...toolsList])
 
-    if(game.tools.length === 0){
-      game.tools = this.shuffle([...toolsList])
+
+      const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+      const choice1 = document.getElementById("choice-1") as HTMLButtonElement;
+      const choice2 = document.getElementById("choice-2") as HTMLButtonElement;
+      const choice3 = document.getElementById("choice-3") as HTMLButtonElement;
+      const cancelBtn = document.getElementById("choice-cancel") as HTMLButtonElement;
+      const imgWrap  = document.getElementById("choice-img-wrap") as HTMLDivElement;
+      const img1     = document.getElementById("choice-img-1") as HTMLImageElement;
+      const img2     = document.getElementById("choice-img-2") as HTMLImageElement;
+
+
+      choice1.hidden = true;
+      choice2.hidden = true;
+      choice3.hidden = true;
+      cancelBtn.hidden = true;
+
+      const toSrc = (name: string) => `/assets/${('tool-' + name).toLowerCase()}.png`;
+      img1.src = toSrc(toolChoice[0]);
+      img1.alt = toolChoice[0];
+      img2.src = toSrc(toolChoice[1]);
+      img2.alt = toolChoice[1];
+      imgWrap.hidden = false;
+      dialog.classList.add('two-col', 'choice-dialog');
+
+
+      this.animatation = true;
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') event.preventDefault();
+      });
+      dialog.showModal();
+
+      const pick = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
+      });
+
+      this.animatation = false;
+
+      // 6) Cleanup: gombok visszaállítása alap állapotra
+      imgWrap.hidden = true;
+      img1.src = '';
+      img2.src = '';
+      choice1.hidden = false;
+      choice2.hidden = false;
+      choice3.hidden = false;
+      cancelBtn.hidden = false;
+      dialog.classList.remove('two-col', 'choice-dialog');
+
+      // 7) Eredmény alkalmazása: választott tool a játékoshoz, másik a pakli aljára
+      const chosenIdx = (pick === "1") ? 0 : 1; // nincs Cancel; kötelező választás
+      const chosen = toolChoice[chosenIdx];
+      game.inventory[player].tool.push(chosen);
+
+    } else {
+      game.inventory[player].tool.push(game.tools[0])
+      game.tools = game.tools.splice(1);
+
+      if(game.tools.length === 0){
+        game.tools = this.shuffle([...toolsList])
+      }
     }
+
     await this.roomService.setGameState(this.roomId, game);
   }
 
@@ -3052,7 +3180,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     }
 
-
+    this.animatation = false;
   }
 
   showBlueprintDialog = false;
@@ -3083,7 +3211,7 @@ export class RoomPageComponent implements AfterViewInit {
   resolveBlueprintTarget(fIdx: number, tIdx: number, revealed: boolean) {
     if (!this.blueprintResolver) return;
     const allowed = !this.blueprintAllowedMask || this.blueprintAllowedMask[fIdx]?.[tIdx];
-    if (revealed || !allowed) return;
+    if ((revealed && !this.rookMode) || !allowed) return;
     const payload = { fIdx, tIdx };
 
     this.showBlueprintDialog = false;
@@ -3176,6 +3304,8 @@ export class RoomPageComponent implements AfterViewInit {
     const game: GameState = JSON.parse(JSON.stringify(room.game));
     (game as any).playerCharacter = (game as any).playerCharacter ?? {};
     (game as any).playerCharacter[name] = character;
+    if(character === "Rigger")
+      game.inventory[name].tool = ["Dynamite"]
 
     this.showCharacterDialog = false;
     await this.roomService.setGameState(this.roomId, game);
@@ -3196,12 +3326,20 @@ export class RoomPageComponent implements AfterViewInit {
       return true}
     if(room.game?.playerPositions[this.playerName] && room.game?.playerCharacter[this.playerName] === "JuicerHard" && room.game.floors[room.game.playerPositions[this.playerName].floor].alarms.find(x => x === room.game?.playerPositions[this.playerName].tileIdx) === undefined && room.game.juicerToken === 1){
       return true}
+    if(room.game?.playerCharacter[this.playerName] === "RiggerHard" && room.game.healths[this.playerName] > 1){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === "RookHard" && Object.keys(room.game.playerPositions).length > 1 && this.actionCount === 0 && room.game.currentAP > 0){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === "Rook" && Object.keys(room.game.playerPositions).length > 1 && !this.rookMoved && room.game.currentAP > 0){
+      return true;}
 
 
     return false
   }
 
   hawkPeeked = false
+  rookMoved = false
+  rookMode = false;
   protected async useCharacterSpell(room: Room) {
     if (!room.game) return
 
@@ -3420,6 +3558,161 @@ export class RoomPageComponent implements AfterViewInit {
     if (game.playerCharacter[this.playerName] === "JuicerHard" && game.floors[game.playerPositions[this.playerName].floor].alarms.find(x => x === game.playerPositions[this.playerName].tileIdx) === undefined && game.juicerToken === 1){
       this.triggerAlarm(updatedGame, "Juicer", game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
       updatedGame.juicerToken = 0
+    }
+
+    if (game?.playerCharacter[this.playerName] === "RiggerHard" && game.healths[this.playerName] > 1){
+      await this.drawTool(updatedGame, this.playerName)
+      updatedGame.healths[this.playerName] -= 1
+    }
+
+    if (game?.playerCharacter[this.playerName] === "RookHard" && Object.keys(game.playerPositions).length > 1 && this.actionCount === 0 && game.currentAP > 0){
+
+      const select = document.getElementById("choice-select") as HTMLSelectElement;
+
+      const eligible = Object.keys(game.playerPositions)
+        .filter(p => p !== this.playerName)
+        .filter(p => game.playerPositions?.[p] !== undefined);
+
+      if (eligible.length === 0) {
+        // nincs kit mozgatni
+        return;
+      }
+
+      // 2) dropdown feltöltése
+      select.innerHTML = "";
+      for (const p of eligible) {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        select.appendChild(opt);
+      }
+      select.hidden = false;
+
+      choice1.hidden = false;
+      choice1.textContent = "OK";
+      choice2.hidden = true;
+      choice3.hidden = true;
+      choice4.hidden = true;
+      closebtn.hidden = false;
+
+      // 4) lock + kötelező választás (ESC ne zárja)
+      this.animatation = true;
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+
+
+      // 5) kiválasztott player
+      const pickedPlayer = select.value;
+
+      if(choice !== "Cancel") {
+        updatedGame.playerPositions[this.playerName] = game.playerPositions[pickedPlayer]
+        updatedGame.playerPositions[pickedPlayer] = game.playerPositions[this.playerName]
+        updatedGame.currentAP -= 1
+        this.actionCount++;
+      }
+      this.animatation = false;
+      select.hidden = true;
+      select.innerHTML = "";
+      choice2.hidden = false;
+      choice3.hidden = false;
+    }
+
+    if (game?.playerCharacter[this.playerName] === "Rook" && Object.keys(game.playerPositions).length > 1 && !this.rookMoved && game.currentAP > 0){
+      const select = document.getElementById("choice-select") as HTMLSelectElement;
+
+      const eligible = Object.keys(game.playerPositions)
+        .filter(p => p !== this.playerName)
+        .filter(p => game.playerPositions?.[p] !== undefined);
+
+      if (eligible.length === 0) {
+        // nincs kit mozgatni
+        return;
+      }
+
+      // 2) dropdown feltöltése
+      select.innerHTML = "";
+      for (const p of eligible) {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        select.appendChild(opt);
+      }
+      select.hidden = false;
+
+      choice1.hidden = false;
+      choice1.textContent = "OK";
+      choice2.hidden = true;
+      choice3.hidden = true;
+      choice4.hidden = true;
+      closebtn.hidden = false;
+
+      // 4) lock + kötelező választás (ESC ne zárja)
+      this.animatation = true;
+      dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+      dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {event.preventDefault();}});
+      dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+
+
+      // 5) kiválasztott player
+      const pickedPlayer = select.value;
+      this.animatation = false
+      if(choice !== "Cancel") {
+
+        const tPos = game.playerPositions![pickedPlayer];
+        const fIdx = tPos.floor;
+        const tIdx = tPos.tileIdx;
+
+        const mask: Record<number, boolean[]> = {};
+        for (let f = 0; f < this.floorCount; f++) mask[f] = Array(16).fill(false);
+
+        const neighbors: number[] = [];
+        const x = tIdx % 4, y = Math.floor(tIdx / 4);
+        const tryPush = (n: number) => {
+          if (n < 0 || n > 15) return;
+          // csak ugyanazon a szinten és csak ha nincs fal közöttük
+          if (!this.isWallBetween(room, fIdx, tIdx, n)) neighbors.push(n);
+        };
+        if (y > 0) tryPush(tIdx - 4);
+        if (x < 3) tryPush(tIdx + 1);
+        if (y < 3) tryPush(tIdx + 4);
+        if (x > 0) tryPush(tIdx - 1);
+
+        for (const n of neighbors) mask[fIdx][n] = true;
+
+        this.rookMode = true
+        this.animatation = true
+        const { fIdx: destF, tIdx: destT } = await this.askBlueprintTarget(room, {
+          allowedMask: mask,
+          header: 'Rook – válaszd ki a célmezőt (1 lépés)'
+        });
+
+        const currentplayername = this.playerName
+        this.playerName = pickedPlayer
+
+        await this.moveToTile(room, destF, destT)
+        this.rookMode = false
+        this.rookMoved = true
+
+        this.playerName = currentplayername
+        this.animatation = false;
+        select.hidden = true;
+        select.innerHTML = "";
+        choice2.hidden = false;
+        choice3.hidden = false;
+        return
+      }
+      this.animatation = false;
+      select.hidden = true;
+      select.innerHTML = "";
+      choice2.hidden = false;
+      choice3.hidden = false;
     }
 
     if (updatedGame)

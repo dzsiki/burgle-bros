@@ -34,7 +34,8 @@ export interface Tile {
   thermalStairsUp: boolean;
   thermalStairsDown: boolean;
   cat: boolean;
-  gold: boolean
+  gold: boolean;
+  notLooted: boolean
 }
 
 export interface keypadTile {

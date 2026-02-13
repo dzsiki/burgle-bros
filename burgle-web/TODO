@@ -1,4 +1,5 @@
 Van amikor az őr nem a legközelebbi alarm felé megy: 0,0 -ba ment miután a aharmadik sor első harmadik alarm
+safe nyitása után gyorsulnak az alatta lévő őrők
 
 Profilon szekrény a lootal
 
@@ -15,14 +16,14 @@ Characters:
 ✔  / As a free action, once per turn, you may peek at a tile up to two spaces away. You cannot skip over unrevealed tiles and you cannot see through walls but you can use the ability to peek around corners and peek up stairs.
 ✔'JUICER': As a free action (multiple times per turn), you may trigger an alarm on an adjacent tile, but not through walls. Note - you cannot trigger an alarm on a hidden tile or a tile with a guard on it.
 ✔  / As a free action, once per turn, you may pick up an active alarm on your tile and draw a new patrol card, or discard one of your alarm tokens to trigger an alarm.
-'PETERMAN': Roll 1 additional die when rolling for the safe or keypad.
-  / You may add dice and roll on safes above or below your tile. However, you're unable to loot safes from another floor, so the loot remains in the safe until retrieved. Do note that all loot must be carried up to the roof to end and win the game.
+✔'PETERMAN': Roll 1 additional die when rolling for the safe or keypad.
+✔  / You may add dice and roll on safes above or below your tile. However, you're unable to loot safes from another floor, so the loot remains in the safe until retrieved. Do note that all loot must be carried up to the roof to end and win the game.
 'RAVEN': As a free action, you may place the crow up to two tiles away from your character but not through walls. The crow remains in that location until you move it again. The guard loses an move each time he enters the crow's tile (so a crow placed on the guard's tile won't affect the guard until a subsequent move into said tile.)
   / As a free action, you may place the crow on your current tile. If the guard starts his movement on the same tile as the crow and there are no alarms, he loses all movement and the crow is returned to you.
-'RIGGER': You start with the dynamite tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
-  / You can lose one Stealth token to draw a Tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
-'ROOK': As an action, once per turn, you may move another player one tile (the other player gets to confirm the move). When moving the other player, lasers and deadbolts do not cost extra actions but otherwise all normal movement rules, such as alarm tiles and rolling for locked keypads, apply.
-  / You may spend your first action swapping places with any player. This does not count as entering the tile for either of you. Please note that the disguise action is only available as the first action and other actions, even free, such as tool use executed first would consume the opportunity to make use of the disguise action.
+✔'RIGGER': You start with the dynamite tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
+✔  / You can lose one Stealth token to draw a Tool. When any player finds a tool, they may draw two tools, keep one, and discard the other.
+✔'ROOK': As an action, once per turn, you may move another player one tile (the other player gets to confirm the move). When moving the other player, lasers and deadbolts do not cost extra actions but otherwise all normal movement rules, such as alarm tiles and rolling for locked keypads, apply.
+✔  / You may spend your first action swapping places with any player. This does not count as entering the tile for either of you. Please note that the disguise action is only available as the first action and other actions, even free, such as tool use executed first would consume the opportunity to make use of the disguise action.
 'SPOTTER': As an action, once per turn, you may look at the top card of the patrol deck for your floor. Then choose to place it on the top or bottom of the deck.
   / As an action, once per turn, you may look at the top card of the event deck. Then choose to place it on the top or bottom of the deck.
 

@@ -58,7 +58,7 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
     topFloorIfTwo.push({
       type: 'Disabled', revealed: false, walls: {top: y === 0, right: x === 3, bottom: y === 3, left: x === 0},
       tokens: 0, number: Math.floor(random() * 6) + 1, cracked: false, empty: false, stealthtoken: 0,
-      thermalStairsUp: false, thermalStairsDown: false, cat: false, gold: false,})
+      thermalStairsUp: false, thermalStairsDown: false, cat: false, gold: false,notLooted: false})
   }
   floors.push({tiles: topFloorIfTwo, alarms: [], safeOpened: false})
 
@@ -155,6 +155,7 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
       thermalStairsDown: false,
       cat: false,
       gold: false,
+      notLooted: false
     });
   }
 
