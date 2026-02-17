@@ -1,270 +1,278 @@
-html, body {
+@keyframes pulseAlarm {
+  0%,to {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px red)
+  }
+
+  50% {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 12px red)
+  }
+}
+
+body,html {
   touch-action: pan-x pan-y pinch-zoom;
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden; /* BODY SOHA ne scrollozzon */
+  overflow: hidden
 }
 
 .viewport {
   width: 100vw;
   height: 100vh;
-
-  overflow: hidden;              /* EZ scrollozik */
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
-
-  background: #f5f7fa;
+  background: #f5f7fa
 }
 
 .app-root {
-  width: 1900px;               /* FIX */
-  height: 900px;               /* FIX */
-
+  width: 1900px;
+  height: 900px;
   position: relative;
   background: #f5f7fa;
-
-  transform-origin: top left;
+  transform-origin: top left
 }
-
 
 :host {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   background-color: #f5f7fa;
   color: #2d3748;
-  overflow: hidden;
+  overflow: hidden
+}
+
+.header-bar,.header-left {
+  display: flex;
+  align-items: center
 }
 
 .header-bar {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1.5rem;
-  background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: .5rem 1.5rem;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,.05);
   z-index: 10;
-  flex: 0 0 auto;
+  flex: 0 0 auto
 }
 
 .header-left {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
+  gap: 2rem
 }
 
 .room-info {
-  display: flex;
+  display: flex
 }
 
 .room-info h1 {
   margin: 0;
   font-size: 1.25rem;
   color: #1a202c;
-  white-space: nowrap;
+  white-space: nowrap
 }
 
 .status-badge {
   display: inline-block;
-  padding: 0.1rem 0.5rem;
+  padding: .1rem .5rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: .75rem;
   font-weight: 600;
-  margin-top: 0.1rem;
-  width: fit-content;
+  margin-top: .1rem;
+  width: fit-content
 }
 
 .status-badge.lobby {
   background: #ebf8ff;
-  color: #2b6cb0;
+  color: #2b6cb0
 }
 
 .status-badge.play {
   background: #f0fff4;
-  color: #2f855a;
+  color: #2f855a
 }
 
 .header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: .5rem
 }
 
 .room-details {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.5rem
 }
 
 .main-content {
   flex: 1;
   overflow: hidden;
   display: flex;
-  flex-direction: column;
+  flex-direction: column
 }
 
 .detail-item {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: .4rem
 }
 
 .detail-item .label {
   font-weight: 600;
   color: #718096;
   white-space: nowrap;
-  font-size: 0.85rem;
+  font-size: .85rem
 }
 
 .seed-input {
-  padding: 0.2rem 0.5rem;
+  padding: .2rem .5rem;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   font-family: monospace;
-  font-size: 0.85rem;
-  width: 80px;
+  font-size: .85rem;
+  width: 80px
 }
 
 .player-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: .4rem
+}
+
+.player-chip,.player-icon {
+  display: flex;
+  align-items: center
 }
 
 .player-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.5rem;
+  gap: .3rem;
+  padding: .15rem .5rem;
   background: #edf2f7;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: .8rem
 }
 
 .player-chip.is-me {
   border-color: #4299e1;
   background: #ebf8ff;
-  color: #2b6cb0;
+  color: #2b6cb0
 }
 
 .player-icon {
   width: 18px;
   height: 18px;
-  background: white;
+  background: #fff;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 0.65rem;
+  font-weight: 700;
+  font-size: .65rem
 }
 
 .is-me .player-icon {
   background: #4299e1;
-  color: white;
+  color: #fff
 }
 
 .btn {
-  padding: 0.4rem 0.8rem;
+  padding: .4rem .8rem;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  font-size: 0.85rem;
+  transition: all .2s;
+  border: 0;
+  font-size: .85rem
 }
 
 .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: .5;
+  cursor: not-allowed
 }
 
 .btn-primary {
   background: #4299e1;
-  color: white;
+  color: #fff
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #3182ce;
+  background: #3182ce
 }
 
 .btn-outline {
-  background: transparent;
+  background: 0 0;
   border: 2px solid #e2e8f0;
-  color: #4a5568;
+  color: #4a5568
 }
 
 .btn-outline:hover:not(:disabled) {
   background: #f7fafc;
-  border-color: #cbd5e0;
+  border-color: #cbd5e0
 }
 
 .btn-danger {
   background: #fff5f5;
   color: #c53030;
-  border: 1px solid #feb2b2;
+  border: 1px solid #feb2b2
 }
 
 .btn-danger:hover:not(:disabled) {
   background: #feb2b2;
-  color: #9b2c2c;
+  color: #9b2c2c
 }
 
 .btn-large {
-  padding: 0.8rem 1.6rem;
-  font-size: 1rem;
+  padding: .8rem 1.6rem;
+  font-size: 1rem
 }
 
 .lobby-start {
   display: flex;
   justify-content: center;
   padding: 3rem;
-  flex: 1;
+  flex: 1
 }
 
 .game-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 0.5rem;
+  padding: .5rem
+}
+
+.floor-navigation,.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center
 }
 
 .floor-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 2rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem
 }
 
 .nav-btn {
-  background: white;
+  background: #fff;
   border: 2px solid #e2e8f0;
   border-radius: 50%;
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
   font-size: 1.2rem;
   color: #4a5568;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all .2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,.05)
 }
 
 .nav-btn:hover:not(:disabled) {
   background: #edf2f7;
   border-color: #cbd5e0;
-  transform: scale(1.05);
+  transform: scale(1.05)
 }
 
 .nav-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+  opacity: .3;
+  cursor: not-allowed
 }
 
 .floor-indicator {
@@ -272,97 +280,99 @@ html, body {
   font-weight: 700;
   color: #2d3748;
   min-width: 100px;
-  text-align: center;
+  text-align: center
+}
+
+.floor,.floors-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center
 }
 
 .floors-container {
   flex: 1;
-  display: flex;
-  flex-direction: column;
   padding: 0;
-  align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: hidden
 }
 
 .floor {
   width: 100%;
-  max-width: 750px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
+  max-width: 780px;
+  flex-shrink: 0
 }
 
 .floor h4 {
-  display: none;
+  display: none
+}
+
+.grid,.tile {
+  aspect-ratio: 1/1
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4,1fr);
   gap: 0;
   background: #0a0e14;
-  padding: 12px;
+  padding: 5px;
   border-radius: 12px;
   width: 100%;
-  aspect-ratio: 1 / 1;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,.1);
+  overflow: hidden
 }
 
 .tile {
-  background: #4a5568;
+  background: antiquewhite;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(10px, 3.5vw, 20px);
+  font-size: clamp(10px,3.5vw,20px);
   position: relative;
   text-align: center;
-  transition: all 0.2s;
+  transition: all .2s;
   color: #edf2f7;
-  aspect-ratio: 1 / 1;
   user-select: none;
-  border-radius: 0;
+  border-radius: 0
 }
 
 .tile.clickable {
   cursor: pointer;
   position: relative;
-  overflow: hidden; /* fontos! */
+  overflow: hidden
+}
+
+.arrows-container,.tile.clickable::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none
 }
 
 .tile.clickable::after {
   content: "";
-  position: absolute;
-  inset: 0; /* top/right/bottom/left = 0 */
-  background: #48bb78; /* zöld szín */
-  opacity: 0; /* default: láthatatlan */
-  transition: opacity 0.2s ease;
-  pointer-events: none; /* ne blokkolja a kattintást */
-  z-index: 5; /* a kép fölött legyen */
+  background: #48bb78;
+  opacity: 0;
+  transition: opacity .2s ease;
+  z-index: 5
 }
 
 .tile.clickable:hover::after {
-  opacity: 0.4; /* 40% átlátszóság – állítható */
+  opacity: .4
 }
 
 .tile.clickable:hover {
   transform: scale(1.02);
   z-index: 2;
-  box-shadow: 0 0 15px rgba(72, 187, 120, 0.4);
+  box-shadow: 0 0 15px rgba(72,187,120,.4)
 }
 
 .tile.revealed {
-  background: white;
-  color: #2d3748;
+  background: antiquewhite;
+  color: #2d3748
 }
 
 .arrows-container {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 15;
+  z-index: 15
 }
 
 .arrow {
@@ -378,74 +388,84 @@ html, body {
   border-radius: 50%;
   font-size: 14px;
   pointer-events: auto;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  border: 2px solid white;
-  z-index: 20;
+  transition: all .2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,.2);
+  border: 2px solid #fff;
+  z-index: 20
 }
 
 .arrow-up {
   top: 4px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%)
 }
 
 .arrow-right {
   right: 4px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%)
 }
 
 .arrow-bottom {
   bottom: 4px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%)
 }
 
 .arrow-left {
   left: 4px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%)
+}
+
+.arrow-floor-down,.arrow-floor-up {
+  top: 15px;
+  background: #4299e1;
+  color: #fff
 }
 
 .arrow-floor-up {
-  top: 15px;
-  right: 15px;
-  background: #4299e1;
-  color: white;
+  right: 15px
 }
 
 .arrow-floor-down {
-  top: 15px;
-  left: 15px;
-  background: #4299e1;
-  color: white;
+  left: 15px
 }
 
 .arrow:hover {
   background: #faf089;
-  z-index: 25;
+  z-index: 25
 }
 
 .arrow-up:hover {
-  transform: translateX(-50%) scale(1.5);
+  transform: translateX(-50%) scale(1.5)
 }
 
 .arrow-right:hover {
-  transform: translateY(-50%) scale(1.5);
+  transform: translateY(-50%) scale(1.5)
 }
 
 .arrow-bottom:hover {
-  transform: translateX(-50%) scale(1.5);
+  transform: translateX(-50%) scale(1.5)
 }
 
 .arrow-left:hover {
-  transform: translateY(-50%) scale(1.5);
+  transform: translateY(-50%) scale(1.5)
 }
 
-.arrow-floor-up:hover, .arrow-floor-down:hover {
+.arrow-floor-down:hover,.arrow-floor-up:hover {
   background: #3182ce;
-  transform: scale(1.5);
+  transform: scale(1.5)
+}
+
+.down-exit-mark,.stealthtokennumber,.tokennumber {
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  opacity: 1;
+  border: 1px solid #fff
 }
 
 .down-exit-mark {
@@ -453,197 +473,154 @@ html, body {
   top: 10px;
   left: 10px;
   background: #2d3748;
-  color: white;
+  color: #fff;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  z-index: 4;
-  opacity: 1;
-  border: 1px solid white;
+  font-size: 12px
 }
 
-.tokennumber, .stealthtokennumber {
-  color: black;
+.stealthtokennumber,.tokennumber {
+  color: #000;
   width: 25px;
   height: 25px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 75%;
-  font-weight: bold;
-  z-index: 4;
-  opacity: 1;
-  border: 1px solid white;
+  font-weight: 700
 }
 
 .tokennumber {
   position: absolute;
   bottom: 15px;
   left: 15px;
-  background: seagreen;
+  background: #2e8b57
 }
+
 .stealthtokennumber {
   position: absolute;
   bottom: 15px;
   left: 50px;
-  background: dodgerblue;
+  background: #1e90ff
 }
 
 .plustoken {
   border-radius: 50%;
   background: #f6e05e;
-  color: #744210;
+  color: #744210
 }
 
 .wall {
   position: absolute;
   z-index: 100;
-  transition: background 0.2s;
-  background: transparent;
-  border: 2px dotted #1a202c;
+  transition: background .2s;
+  background: 0 0;
+}
+
+.wall-bottom,.wall-top {
+  left: -1px;
+  right: -1px;
+  height: 0
 }
 
 .wall-top {
-  top: -1px;
-  left: -1px;
-  right: -1px;
-  height: 0;
+  top: -1px
 }
 
 .wall-bottom {
+  bottom: -1px
+}
+
+.wall-left,.wall-right {
+  top: -1px;
   bottom: -1px;
-  left: -1px;
-  right: -1px;
-  height: 0;
+  width: 0
 }
 
 .wall-left {
-  top: -1px;
-  left: -1px;
-  bottom: -1px;
-  width: 0;
+  left: -1px
 }
 
 .wall-right {
-  top: -1px;
-  right: -1px;
-  bottom: -1px;
-  width: 0;
+  right: -1px
 }
 
-.wall-right.wall.is-real {
-  width: 7px;
-  background: #1a202c;
+.wall-left.wall.is-real,.wall-right.wall.is-real {
+  width: 10px;
+  background: #1a202c
 }
 
-.wall-left.wall.is-real {
-  width: 7px;
-  background: #1a202c;
+.wall-bottom.wall.is-real,.wall-top.wall.is-real {
+  height: 10px;
+  background: #1a202c
 }
 
-.wall-bottom.wall.is-real {
-  height: 7px;
-  background: #1a202c;
-}
-
-.wall-top.wall.is-real {
-  height: 7px;
-  background: #1a202c;
-}
-
-/* Force solid walls on the perimeter */
-.tile.edge-top .wall-top,
-.tile.edge-bottom .wall-bottom,
-.tile.edge-left .wall-left,
-.tile.edge-right .wall-right {
-  background: #1a202c !important;
+.tile.edge-bottom .wall-bottom,.tile.edge-left .wall-left,.tile.edge-right .wall-right,.tile.edge-top .wall-top {
+  background: #1a202c!important
 }
 
 .players-on-tile {
   position: absolute;
-  inset: 0;                  /* kitölti a tile-t */
+  inset: 0;
   display: grid;
-
-  grid-template-columns: repeat(3, 20%);
+  grid-template-columns: repeat(3,20%);
   grid-auto-rows: 20%;
   gap: 4%;
-
   width: 100%;
   height: 100%;
-
-  /* Pawnok középre igazítása */
   place-items: center;
   justify-content: center;
   align-content: center;
-
-  pointer-events: none;
+  pointer-events: none
 }
 
-
 .players-on-tile:has(:nth-child(1)):not(:has(:nth-child(2))) {
-  grid-template-columns: 20%;
+  grid-template-columns: 20%
 }
 
 .players-on-tile:has(:nth-child(2)):not(:has(:nth-child(3))) {
-  grid-template-columns: repeat(2, 20%);
+  grid-template-columns: repeat(2,20%)
 }
 
-
-.player-pawn {
-  width: 90%;
-  aspect-ratio: 1 / 1;
-  background: black;
-  color: white;
+.number-on-tile,.player-pawn {
+  color: #fff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid white;
-  font-weight: bold;
-  font-size: larger;
-  z-index: 15;
   pointer-events: none;
+  border: 2px solid #fff
+}
+
+.player-pawn {
+  width: 90%;
+  aspect-ratio: 1/1;
+  background: #000;
+  font-weight: 700;
+  font-size: larger;
+  z-index: 15
 }
 
 .player-pawn.is-me {
-  background: darkgreen;
-  border-color: white;
+  background: #006400;
+  border-color: #fff
 }
 
 .player-pawn.number-on-tile {
-  background: darkslategray;
-  border-color: slategray;
+  background: #2f4f4f;
+  border-color: #708090
 }
-
 
 .number-on-tile {
   position: absolute;
   bottom: 4px;
   right: 4px;
-
   width: 24px;
   height: 24px;
   background: #4a5568;
-  color: white;
-  border-radius: 50%;
   font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  border: 2px solid white;
   z-index: 20;
   margin-right: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 10px
 }
 
-
-/* Tile images should fill the tile while allowing overlays (arrows, pawns) on top */
 .tile-img {
   position: absolute;
   inset: 0;
@@ -652,41 +629,42 @@ html, body {
   width: calc(100% - 20px);
   height: calc(100% - 20px);
   object-fit: cover;
-  z-index: 1;
+  z-index: 1
 }
 
 .tile-type {
   position: relative;
-  z-index: 2;
+  z-index: 2
 }
 
-.guard-figure, .guard-target {
-
+.guard-figure,.guard-target {
   pointer-events: none;
   user-select: none;
-  animation: pulseAlarm 1.2s infinite ease-in-out;
+  animation: pulseAlarm 1.2s infinite ease-in-out
 }
 
 .guard-target {
   color: #e53e3e;
-  text-shadow: 0 0 6px #fff, 0 0 2px #e53e3e;
+  text-shadow: 0 0 6px #fff,0 0 2px #e53e3e
 }
 
 .guard-figure {
   color: #2b6cb0;
-  text-shadow: 0 0 6px #fff, 0 0 2px #2b6cb0;
+  text-shadow: 0 0 6px #fff,0 0 2px #2b6cb0
+}
+
+.guard-path-bar,.guard-path-dot {
+  position: absolute;
+  pointer-events: none
 }
 
 .guard-path-bar {
-  position: absolute;
   background: #e14297;
-  opacity: 0.85;
-  z-index: 8;
-  pointer-events: none;
+  opacity: .85;
+  z-index: 8
 }
 
 .guard-path-dot {
-  position: absolute;
   top: 50%;
   left: 50%;
   width: 18px;
@@ -694,42 +672,39 @@ html, body {
   background: #d32020;
   border: 3px solid #e14297;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%,-50%);
   z-index: 11;
-  box-shadow: 0 0 6px #d32020, 0 0 6px #e14297;
-  pointer-events: none;
+  box-shadow: 0 0 6px #d32020,0 0 6px #e14297
+}
+
+.bar-down,.bar-up {
+  left: 50%;
+  width: 8px;
+  height: 50%;
+  transform: translateX(-50%)
 }
 
 .bar-up {
-  top: 0;
-  left: 50%;
-  width: 8px;
-  height: 50%;
-  transform: translateX(-50%);
+  top: 0
 }
 
 .bar-down {
-  bottom: 0;
-  left: 50%;
-  width: 8px;
-  height: 50%;
-  transform: translateX(-50%);
+  bottom: 0
+}
+
+.bar-left,.bar-right {
+  top: 50%;
+  width: 50%;
+  height: 8px;
+  transform: translateY(-50%)
 }
 
 .bar-left {
-  left: 0;
-  top: 50%;
-  width: 50%;
-  height: 8px;
-  transform: translateY(-50%);
+  left: 0
 }
 
 .bar-right {
-  right: 0;
-  top: 50%;
-  width: 50%;
-  height: 8px;
-  transform: translateY(-50%);
+  right: 0
 }
 
 .game-layout {
@@ -737,12 +712,12 @@ html, body {
   flex-direction: row;
   align-items: flex-start;
   width: 100%;
-  height: 100%;
+  height: 100%
 }
 
 .game-area {
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 0
 }
 
 .side-panel-right {
@@ -752,88 +727,81 @@ html, body {
   flex-direction: column;
   height: 900px;
   box-sizing: border-box;
-  align-items: center; /* vízszintesen középen */
-
+  align-items: center
 }
 
-.ap-counter {
+.ap-counter,.hacks {
   font-size: 1.1rem;
-  font-weight: bold;
+  font-weight: 700;
   color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.hacks {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem
 }
 
 .hp-icon {
   width: 50px;
-  height: 50px;
+  height: 50px
 }
 
 .panel-top {
   flex: 0 0 auto;
   width: 100%;
-  text-align: center;
+  text-align: center
+}
+
+.panel-bottom,.panel-middle {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px
 }
 
 .panel-middle {
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* függőlegesen középen */
-  align-items: center; /* vízszintesen középen */
-  gap: 10px;
-  width: 100%;
-  height: 300px;
+  justify-content: center;
+  height: 350px;
   font-size: large;
-  font-weight: bold;
+  font-weight: 700;
   color: #2d3748;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem
 }
 
 .panel-bottom {
-  width: 100%;
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* opcionális: középre igazítja a gombokat */
-  gap: 10px;          /* kis térköz a gombok között */
+  padding-top: 10px
 }
 
 .endturnbtn button {
-  font-size: 1.4rem; /* nagyobb betűméret */
-  padding: 1rem 2rem; /* nagyobb gomb */
-  width: 80%; /* szélesebb */
+  font-size: 1.4rem;
+  padding: 1rem 2rem;
+  width: 80%;
   height: 50px;
-  max-width: 220px; /* ne legyen túl széles */
-  border-radius: 12px; /* szép lekerekítés */
-  font-weight: 700; /* erős, jól látható */
-  transition: transform 0.1s ease, background-color 0.2s ease;
+  max-width: 220px;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: transform .1s ease,background-color .2s ease
 }
 
 .endturnbtn button:not(:disabled):hover {
   background-color: #2563eb;
-  transform: scale(1.05);
+  transform: scale(1.05)
 }
 
 .plustoken:hover {
   background: #faf089;
-  transform: scale(1.2);
+  transform: scale(1.2)
+}
+
+.dice,.panel-dice {
+  justify-content: center;
+  align-items: center
 }
 
 .panel-dice {
   margin-top: 5px;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(6, 50px);
-  gap: 0.5rem;
-  justify-items: center;
-  justify-content: center;
-  align-items: center;
+  grid-template-columns: repeat(6,50px);
+  gap: .5rem;
+  justify-items: center
 }
 
 .dice {
@@ -843,21 +811,12 @@ html, body {
   font-size: 400%;
   font-weight: 700;
   color: #2d3748;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: flex
 }
 
 .ap-dialog h3 {
   margin-top: 0;
-  margin-bottom: 0.5rem;
-}
-
-.ap-dialog-buttons {
-  margin-top: 1.2rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  margin-bottom: .5rem
 }
 
 .crackbtn {
@@ -865,37 +824,40 @@ html, body {
   height: 30px;
   padding: 0;
   right: 15px;
-  left: auto;
+  left: auto
 }
 
 .numberCracked {
-  background: forestgreen;
+  background: #228b22
 }
-
 
 .heatmap-grid {
   display: grid;
-  width: 200px;
-  height: 200px;
-  grid-template-columns: repeat(4, 25%);
+  width: 250px;
+  height: 250px;
+  grid-template-columns: repeat(4,25%)
 }
 
 .heat-cell {
   width: 100%;
   aspect-ratio: 1/1;
-  box-sizing: border-box;
+  box-sizing: border-box
 }
+
 .heat-cell.border-right {
-  border-right: 4px solid black;
+  border-right: 4px solid #000
 }
+
 .heat-cell.border-bottom {
-  border-bottom: 4px solid black;
+  border-bottom: 4px solid #000
 }
+
 .heat-cell.border-left {
-  border-left: 4px solid black;
+  border-left: 4px solid #000
 }
+
 .heat-cell.border-top {
-  border-top: 4px solid black;
+  border-top: 4px solid #000
 }
 
 .side-panel-left {
@@ -903,7 +865,7 @@ html, body {
   height: 900px;
   margin: 1rem;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2,1fr)
 }
 
 .scroll-btn {
@@ -911,33 +873,31 @@ html, body {
   width: 40px;
   height: 40px;
   background: #222;
-  color: white;
-  border: none;
+  color: #fff;
+  border: 0;
   cursor: pointer;
   font-size: 16px;
-
-  z-index: 10; /* biztonság */
+  z-index: 10
 }
 
 .scroll-btn.scroll-up {
   position: absolute;
-  top: 0.25rem;   /* pici eltartás a tetejétől */
-  right: 4px;
+  top: .25rem;
+  right: 4px
 }
 
 .scroll-btn.scroll-down {
   position: absolute;
-  bottom: 0.25rem; /* pici eltartás az aljától */
-  right: 4px;
+  bottom: .25rem;
+  right: 4px
 }
 
-
 .scroll-btn:hover {
-  background: #444;
+  background: #444
 }
 
 .scroll-btn:active {
-  background: #666;
+  background: #666
 }
 
 .tools-inner {
@@ -946,7 +906,7 @@ html, body {
   width: 260px;
   position: relative;
   margin-bottom: 1rem;
-  padding-right: 60px;
+  padding-right: 60px
 }
 
 .square-img {
@@ -955,44 +915,32 @@ html, body {
   aspect-ratio: 1/1;
   object-fit: cover;
   border-radius: 8px;
-  border: 4px solid black;
-
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    z-index 0s;
+  border: 4px solid #000;
+  transition: transform .25s ease,box-shadow .25s ease,z-index 0s
 }
 
-.square-img:hover{
+.square-img:hover {
   transform: scale(1.1);
   z-index: 999;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 10px rgba(0,0,0,.8)
 }
 
-.overlay{
+.overlay {
   position: fixed;
   inset: 0;
-
-  /* színesebb, de még mindig sötét és olvasható */
-  background:
-    radial-gradient(900px 600px at 15% 20%, rgba(124, 92, 255, 0.22), transparent 55%),
-    radial-gradient(800px 520px at 85% 70%, rgba(56, 189, 248, 0.18), transparent 60%),
-    rgba(0,0,0,.55);
-
+  background: radial-gradient(900px 600px at 15% 20%,rgba(124,92,255,.22),transparent 55%),radial-gradient(800px 520px at 85% 70%,rgba(56,189,248,.18),transparent 60%),rgba(0,0,0,.55);
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 18px;
   z-index: 9999;
-
-  /* kis “glass” hatás */
   backdrop-filter: blur(6px);
-  transition: opacity 0.1s ease;
+  transition: opacity .1s ease
 }
+
 .overlay.peek-mode {
-  opacity: 0.25;
-  pointer-events: none; /* de a gomb eseményei ettől függetlenül működnek */
+  opacity: .25;
+  pointer-events: none
 }
 
 .peek-btn {
@@ -1002,627 +950,569 @@ html, body {
   z-index: 10;
   padding: 6px 10px;
   font-size: 18px;
-  background: rgba(0,0,0,0.6);
-  color: white;
+  background: rgba(0,0,0,.6);
+  color: #fff;
   border: 1px solid #888;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: pointer
 }
+
 .peek-btn:active {
-  background: black;
+  background: #000
 }
 
-
-
-.modal{
-  /* kártya + enyhe színátmenet */
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)),
-    rgba(12, 18, 40, 0.85);
-
+.modal {
+  background: linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.06)),rgba(12,18,40,.85);
   color: #fff;
   padding: 18px;
   border-radius: 16px;
-
-  width: min(900px, 95vw);
-  //max-height: min(82vh, 860px);
+  width: min(900px,95vw);
+  //max-height: min(82vh,860px);
   overflow: auto;
-
-  border: 1px solid rgba(255,255,255,0.16);
-  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
-
-  /* középre rendezés a modalban is */
-  text-align: center;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 22px 70px rgba(0,0,0,.55);
+  text-align: center
 }
 
-.blueprintgrid{
+.blueprintgrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4,1fr);
   aspect-ratio: auto;
-
   gap: 10px;
   margin-top: 14px;
-
-  /* a gombok szépen középre üljenek a cellákban */
   justify-items: center;
-  align-items: center;
+  align-items: center
 }
 
-.cell{
+.cell {
   height: 70px;
   width: 100%;
   border-radius: 14px;
-
-  /* “kártya” hatás */
-  border: 1px solid rgba(255,255,255,0.14);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05)),
-    rgba(0,0,0,0.18);
-
-  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.05)),rgba(0,0,0,.18);
+  color: rgba(255,255,255,.92);
   font-weight: 800;
-  letter-spacing: 0.2px;
-
-  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
-  transition: transform .12s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  letter-spacing: .2px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.25);
+  transition: transform .12s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease
 }
 
-.cell:hover{
+.cell:hover,.floorTabs button:hover {
   transform: translateY(-1px);
-  border-color: rgba(56, 189, 248, 0.40);
-  background:
-    linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(255,255,255,0.05)),
-    rgba(0,0,0,0.18);
-  cursor: pointer;
+  cursor: pointer
 }
 
-.cell:active{
-  transform: translateY(0);
+.cell:hover {
+  border-color: rgba(56,189,248,.4);
+  background: linear-gradient(180deg,rgba(56,189,248,.16),rgba(255,255,255,.05)),rgba(0,0,0,.18)
 }
 
-.cell.revealed{
-  outline: 2px solid rgba(34, 197, 94, 0.75);
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18), 0 12px 24px rgba(0,0,0,0.30);
-}
-.hawkCurrent{
-  background: rgba(34, 197, 94, 0.75)
+.cell:active {
+  transform: translateY(0)
 }
 
-.bpdisabled{
-  background: rgba(0,0,0,0.18);
-}
-.bpdisabled:hover{
-  transform: translateY(0);
-  border-color: rgba(0,0,0,0.18);
-  background: rgba(0,0,0,0.18);
-  cursor: not-allowed;
+.cell.revealed {
+  outline: 2px solid rgba(34,197,94,.75);
+  box-shadow: 0 0 0 3px rgba(34,197,94,.18),0 12px 24px rgba(0,0,0,.3)
 }
 
-.floorTabs button{
-  /* középre rendezett, nagyobb gombok */
+.hawkCurrent {
+  background: rgba(34,197,94,.75)
+}
+
+.bpdisabled,.bpdisabled:hover,.floorTabs button {
+  background: rgba(0,0,0,.18)
+}
+
+.bpdisabled:hover {
+  border-color: rgba(0,0,0,.18);
+  cursor: not-allowed
+}
+
+.floorTabs button {
   margin-right: 8px;
-
   padding: 12px 18px;
   font-size: 16px;
   font-weight: 800;
-
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.18);
-  color: rgba(255,255,255,0.92);
-
-  box-shadow: 0 10px 20px rgba(0,0,0,0.28);
-  transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  border: 1px solid rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+  box-shadow: 0 10px 20px rgba(0,0,0,.28);
+  transition: transform .12s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease
 }
 
-.floorTabs button:hover{
-  transform: translateY(-1px);
-  background: rgba(124, 92, 255, 0.18);
-  border-color: rgba(124, 92, 255, 0.45);
-  cursor: pointer;
+.floorTabs button:hover {
+  background: rgba(124,92,255,.18);
+  border-color: rgba(124,92,255,.45)
 }
 
-.floorTabs button:active{
-  transform: translateY(0);
+.bpdisabled:hover,.floorTabs button:active {
+  transform: translateY(0)
 }
 
 .activeblueprintfloorbtn {
-  background: rgba(124, 92, 255, 0.8);
+  background: rgba(124,92,255,.8)
 }
 
-.crystalNumbers{
-  width: min(720px, 92vw);
+.crystalNumbers {
+  width: min(720px,92vw);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3,1fr);
   gap: 12px;
   text-align: center;
-  margin: 10px auto 6px;
+  margin: 10px auto 6px
 }
 
-.crystalNum{
+.crystalNum {
   font-weight: 900;
   font-size: 18px;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,.9)
 }
 
-.crystalRow{
-  width: min(720px, 92vw);
+.crystalRow {
+  width: min(720px,92vw);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3,1fr);
   gap: 12px;
-
   justify-items: center;
   align-items: start;
   margin-top: 6px;
   margin-left: auto;
   margin-right: auto;
-
-
-  /* mobil DnD simább */
-  touch-action: none;
+  touch-action: none
 }
 
-.crystalCard{
+.crystalCard {
   width: 100%;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.18);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 10px 20px rgba(0,0,0,.25);
   padding: 10px;
-
-  /* húzáskor ne jelölje ki */
-  user-select: none;
+  user-select: none
 }
 
-.crystalImgWrap{
+.crystalImgWrap {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1/1;
   border-radius: 20px;
   overflow: hidden;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,.06);
   display: grid;
-  place-items: center;
+  place-items: center
 }
 
-.crystalImgWrap img{
+.crystalImgWrap img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  display: block
 }
 
-.crystalFallback{
+.crystalFallback {
   padding: 10px;
   text-align: center;
   font-weight: 800;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255,255,255,.85)
 }
 
-.crystalActions{
+.crystalActions {
   margin-top: 14px;
   display: flex;
-  justify-content: center;
+  justify-content: center
 }
 
-.crystalActions button{
+.crystalActions button {
   padding: 12px 18px;
   border-radius: 999px;
-  font-weight: 900;
+  font-weight: 900
 }
 
-.eventImg{
+.eventFallback,.eventImg {
+  margin: 12px auto 14px;
+  border-radius: 14px
+}
+
+.eventImg {
   display: block;
-  margin: 12px auto 14px auto;
-  max-width: min(82vw, 560px);
+  max-width: min(82vw,560px);
   width: 100%;
-  height: auto;
-  border-radius: 14px;
+  height: auto
 }
 
-.eventFallback{
-  margin: 12px auto 14px auto;
+.eventFallback {
   padding: 22px;
-  width: min(82vw, 560px);
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.18);
+  width: min(82vw,560px);
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
   text-align: center;
-  font-weight: 900;
+  font-weight: 900
 }
 
-.eventOk{
+.eventOk {
   display: block;
   margin: 0 auto;
   padding: 12px 20px;
   border-radius: 999px;
-  font-weight: 900;
+  font-weight: 900
 }
 
-#choice-select { width: 100%; margin: 10px 0; padding: 10px; border-radius: 10px; }
-
-.floorToggle{
-  display:flex;
-  align-items:center;
-  gap:8px;
+#choice-select {
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 10px
 }
 
-.switch{
-  position:relative;
-  display:inline-block;
-  width:48px;
-  height:26px;
+.floorToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px
 }
 
-.switch input{
-  opacity:0;
-  width:0;
-  height:0;
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px
 }
 
-.slider{
-  position:absolute;
-  cursor:pointer;
-  inset:0;
-  background:#444;
-  border-radius:999px;
-  transition:.2s;
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0
 }
 
-.slider:before{
-  content:"";
-  position:absolute;
-  height:20px;
-  width:20px;
-  left:3px;
-  top:3px;
-  background:white;
-  border-radius:50%;
-  transition:.2s;
+.slider,.slider:before {
+  position: absolute;
+  transition: .2s
 }
 
-.switch input:checked + .slider{
-  background:#7c5cff;
+.slider {
+  cursor: pointer;
+  inset: 0;
+  background: #444;
+  border-radius: 999px
 }
 
-.switch input:checked + .slider:before{
-  transform: translateX(22px);
+.slider:before {
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%
 }
 
-.switch input:disabled + .slider{
-  opacity:.45;
-  cursor:not-allowed;
+.switch input:checked+.slider {
+  background: #7c5cff
 }
 
-.lbl{
-  font-weight:800;
+.switch input:checked+.slider:before {
+  transform: translateX(22px)
+}
+
+.switch input:disabled+.slider {
+  opacity: .45;
+  cursor: not-allowed
+}
+
+.lbl {
+  font-weight: 800
 }
 
 .char-heat-wrapper {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
+  gap: 20px
 }
 
 .heatmap-container {
-  width: 200px;
+  width: 250px
 }
 
 .character-box {
-  width: 200px;
-  position: relative;   /* EZ KELL */
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  width: 250px;
+  position: relative;
+  transition: transform .25s ease,box-shadow .25s ease
 }
 
 .character-img {
-  width: 200px;
-  height: 200px;
+  width: 250px;
+  height: 250px;
   border-radius: 12px;
   position: relative;
   z-index: 1000;
   background: #0f0f0f;
-  object-fit: contain;
-
+  object-fit: contain
 }
 
 .juicerAlarm {
   position: absolute;
-  bottom: 6px;      /* távolság aljától */
-  right: 6px;       /* távolság jobb oldalától */
-  font-size: 50px;  /* nagyobb emoji */
-  z-index: 1001;       /* kép fölött */
-  pointer-events: none; /* ne lehessen rákattintani */
+  bottom: 6px;
+  right: 6px;
+  font-size: 50px;
+  z-index: 1001;
+  pointer-events: none;
   filter: drop-shadow(0 0 6px red);
-  animation: pulseAlarm 1.2s infinite ease-in-out;
-}
-
-@keyframes pulseAlarm {
-  0% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 4px red);
-  }
-  50% {
-    transform: scale(1.25);
-    filter: drop-shadow(0 0 12px red);
-  }
-  100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 4px red);
-  }
+  animation: pulseAlarm 1.2s infinite ease-in-out
 }
 
 .character-box:hover {
   transform: scale(2) translateX(-50px);
-  z-index: 1000;
+  z-index: 1000
 }
 
 .character-box:hover .character-img {
-  box-shadow: 0 0 12px rgba(0,0,0,1);
+  box-shadow: 0 0 12px #000
 }
 
 .stats-row .label {
   font-weight: 600;
-  text-align: right;  /* hogy a szöveg a kettőspont helyére essen */
-  padding-right: 6px;
+  text-align: right;
+  padding-right: 6px
 }
 
 .stats-row .value {
-  text-align: left;
-}
-
-.separator {
-  margin: 10px 0 6px;
-  font-weight: 700;
-  text-align: center;
-  opacity: .7;
+  text-align: left
 }
 
 .stats-row {
   display: grid;
-  grid-template-columns: 250px 250px; /* cím | érték */
-  justify-content: center;           /* a gridet középre teszi */
+  grid-template-columns: 250px 250px;
+  justify-content: center;
   gap: 10px;
-  height: 25px;
+  height: 25px
 }
 
 .label {
   font-weight: 600;
-  text-align: right;
+  text-align: right
 }
 
 .value {
-  text-align: left;
+  text-align: left
 }
 
 .separator {
   margin: 10px 0 6px;
   font-weight: 700;
   text-align: center;
-  opacity: .7;
+  opacity: .7
 }
 
+.dialog-body,.image-wrapper {
+  display: grid;
+  gap: clamp(8px,2vh,16px)
+}
 
 .dialog-body {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
   align-items: stretch;
   justify-content: center;
-  gap: clamp(8px, 2vh, 16px);
-  padding: clamp(16px, 3vh, 24px);
-  box-sizing: border-box;
+  padding: clamp(16px,3vh,24px);
+  box-sizing: border-box
 }
 
-/* Image wrapper for 2-image mode - horizontal layout */
 .image-wrapper {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Always 2 columns for 2 images */
-  gap: clamp(8px, 2vh, 16px);
+  grid-template-columns: repeat(2,1fr);
   width: 100%;
-  margin: 0 auto;
+  margin: 0 auto
 }
 
 .tool-choice-img:hover {
   transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35)
 }
 
 .tool-choice-img:active {
-  transform: scale(1);
+  transform: scale(1)
 }
 
-/* Buttons for non-image mode */
-.btn.btn-success {
+.btn.btn-success,.choice-dialog {
+  border: 1px solid rgba(255,255,255,.16)
+}
+
+#choice-cancel.btn.btn-danger,.btn.btn-success {
   width: 100%;
   height: auto;
-  padding: clamp(10px, 2vh, 18px) clamp(12px, 3vw, 24px);
-  font-size: clamp(14px, 2vw, 18px);
+  padding: clamp(10px,2vh,18px) clamp(12px,3vw,24px);
+  font-size: clamp(14px,2vw,18px)
+}
+
+.btn.btn-success {
   font-weight: 800;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(100, 70, 200, 0.9);
-  color: rgba(255,255,255,0.92);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.28);
-  transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  background: rgba(100,70,200,.9);
+  color: rgba(255,255,255,.92);
+  box-shadow: 0 10px 20px rgba(0,0,0,.28);
+  transition: transform .12s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  min-height: 48px
 }
 
 .btn.btn-success:hover {
   transform: translateY(-1px);
-  background: rgba(124, 92, 255, 0.18);
-  border-color: rgba(124, 92, 255, 0.45);
-  color: black;
-  cursor: pointer;
+  background: rgba(124,92,255,.18);
+  border-color: rgba(124,92,255,.45);
+  color: #000;
+  cursor: pointer
 }
 
 .btn.btn-success:active {
-  transform: translateY(0);
+  transform: translateY(0)
 }
 
-/* Cancel button */
 #choice-cancel.btn.btn-danger {
-  width: 100%;
-  height: auto;
-  padding: clamp(10px, 2vh, 18px) clamp(12px, 3vw, 24px);
-  font-size: clamp(14px, 2vw, 18px);
-  margin-top: clamp(8px, 2vh, 16px);
-  grid-column: 1 / -1;
+  margin-top: clamp(8px,2vh,16px);
+  grid-column: 1/-1
 }
-
 
 .choice-dialog {
   padding: 0;
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(90vw, 800px);
+  transform: translate(-50%,-50%);
+  width: min(90vw,800px);
   max-height: 80vh;
   overflow-y: auto;
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)),
-    rgba(12, 18, 40, 0.85);
+  background: linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.06)),rgba(12,18,40,.85);
   color: #fff;
-  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
-  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 22px 70px rgba(0,0,0,.55);
   text-align: center;
-  z-index: 10001; /* biztosan mindent verjen */
+  z-index: 10001
 }
 
 .choice-dialog::backdrop {
-  background:
-    radial-gradient(900px 600px at 15% 20%, rgba(124, 92, 255, 0.22), transparent 55%),
-    radial-gradient(800px 520px at 85% 70%, rgba(56, 189, 248, 0.18), transparent 60%),
-    rgba(0,0,0,.55);
-  backdrop-filter: blur(6px);
+  background: radial-gradient(900px 600px at 15% 20%,rgba(124,92,255,.22),transparent 55%),radial-gradient(800px 520px at 85% 70%,rgba(56,189,248,.18),transparent 60%),rgba(0,0,0,.55);
+  backdrop-filter: blur(6px)
 }
 
-.choice-dialog form { margin: 0; }
+.choice-dialog form {
+  margin: 0
+}
 
 .choice-dialog .dialog-body {
   display: grid;
   grid-template-columns: 1fr;
   align-items: stretch;
   justify-content: center;
-  gap: clamp(8px, 2vh, 16px);
-  padding: clamp(16px, 3vh, 24px);
-  box-sizing: border-box;
+  gap: clamp(8px,2vh,16px);
+  padding: clamp(16px,3vh,24px);
+  box-sizing: border-box
 }
 
-/* Képes wrapper – alapból rejtve, csak kétopciós módban mutatjuk (two-col) */
-.choice-dialog .image-wrapper { display: none; }
+.choice-dialog .image-wrapper {
+  display: none
+}
+
 .choice-dialog.two-col .image-wrapper {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: clamp(8px, 2vh, 16px);
+  grid-template-columns: repeat(2,1fr);
+  gap: clamp(8px,2vh,16px);
   width: 100%;
-  margin: 0 auto;
+  margin: 0 auto
 }
 
-/* A két kattintható kép */
 .choice-dialog .tool-choice-img {
   width: 100%;
   height: auto;
   max-height: 50vh;
   object-fit: contain;
   border-radius: 12px;
-  border: 2px solid rgba(0,0,0,0.12);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  border: 2px solid rgba(0,0,0,.12);
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
   background: #0f0f0f;
   cursor: pointer;
-  transition: transform .12s ease, box-shadow .18s ease;
-}
-.choice-dialog .tool-choice-img:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  transition: transform .12s ease,box-shadow .18s ease
 }
 
-/* KIZÁRÓLAG az AP dialógushoz */
+.choice-dialog .tool-choice-img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35)
+}
+
 .ap-overlay {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(900px 600px at 15% 20%, rgba(124, 92, 255, 0.22), transparent 55%),
-    radial-gradient(800px 520px at 85% 70%, rgba(56, 189, 248, 0.18), transparent 60%),
-    rgba(0,0,0,.55);
+  background: radial-gradient(900px 600px at 15% 20%,rgba(124,92,255,.22),transparent 55%),radial-gradient(800px 520px at 85% 70%,rgba(56,189,248,.18),transparent 60%),rgba(0,0,0,.55);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 18px;
-  z-index: 10000; /* magasabb, mint bármi a játéktérben */
-  backdrop-filter: blur(6px);
+  z-index: 10000;
+  backdrop-filter: blur(6px)
 }
 
 .ap-modal {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)),
-    rgba(12, 18, 40, 0.85);
+  background: linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.06)),rgba(12,18,40,.85);
   color: #fff;
   padding: 18px;
   border-radius: 16px;
-  width: min(480px, 95vw);
-  max-height: min(82vh, 860px);
+  width: min(480px,95vw);
+  max-height: min(82vh,860px);
   overflow: auto;
-  border: 1px solid rgba(255,255,255,0.16);
-  box-shadow: 0 22px 70px rgba(0,0,0,0.55);
-  text-align: center;
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: 0 22px 70px rgba(0,0,0,.55);
+  text-align: center
 }
 
 .ap-dialog-buttons {
   margin-top: 1.2rem;
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 1rem
 }
 
-dialog button[hidden],
-dialog select[hidden],
-dialog div[hidden] {
-  display: none !important;
+dialog button[hidden],dialog div[hidden],dialog select[hidden] {
+  display: none!important
 }
 
 .patrol-grid {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 16px;
+  margin-bottom: 16px
 }
 
 .patrol-row {
   display: flex;
   gap: 4px;
-  align-self: center;
+  align-self: center
+}
+
+.patrol-cell,.win-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center
 }
 
 .patrol-cell {
   width: 100px;
   height: 100px;
-  display: flex;
   font-size: 75px;
-  align-items: center;
-  justify-content: center;
   background: #222;
   border: 1px solid #555;
-  border-radius: 4px;
+  border-radius: 4px
 }
 
 .win-overlay {
   position: fixed;
-  inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
-  display: flex;
-  align-items: center;      /* függőleges közép */
-  justify-content: center;  /* vízszintes közép */
-  background: rgba(0,0,0,0.6);   /* opcionális sötétítés */
-  z-index: 99999;                /* mindent takarjon */
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 99999
 }
 
 .win-image {
-  width: 100vw;         /* ne lógjon ki vízszintesen */
-  height: 100vh;        /* ne lógjon ki függőlegesen */
-  object-fit: contain;      /* aránytartás, ne torzuljon */
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
-  cursor: pointer;          /* jelezze, hogy kattintható */
+  cursor: pointer
 }

@@ -81,7 +81,7 @@ const LOOT_LIST = [
           <!-- JOBB: VITRIN -->
           @if (player; as p) {
             <section class="panel vitrin">
-              <h3>Loot vitrin</h3>
+              <h3>Loot</h3>
 
               <div class="vitrin-grid">
                 @for (loot of lootList; track loot) {
@@ -171,6 +171,8 @@ const LOOT_LIST = [
       border: 1px solid #edf2f7;
       border-radius: .75rem;
       padding: 1rem;
+      align-content: center;
+      justify-items: center;
     }
 
     .panel h3 {

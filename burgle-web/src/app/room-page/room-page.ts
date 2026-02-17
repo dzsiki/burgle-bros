@@ -87,7 +87,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <button class="btn btn-outline" (click)="router.navigate(['/'])">Főoldal</button>
               }
 
-              @if (room.phase !== 'lobby' && !isSpectator(room)) {
+              @if (room.phase !== 'lobby') {
                 <button class="btn btn-danger" (click)="reset(roomId)">Reset</button>
               }
             </div>
@@ -363,7 +363,10 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                                   <span class="tile-type">{{ tile.type }}</span>
                                 }
                               } @else {
-                                <span class="tile-type">?</span>
+                                @let imgUrl = getOrLoadTileImage('room-unrevealed');
+                                @if (imgUrl && imgUrl != '') {
+                                  <img class="tile-img" [ngSrc]="imgUrl" width="1" height="1"/>
+                                }
                               }
 
                               <div class="walls">
@@ -473,7 +476,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     <div class="stats-row">
                       @if (room.game?.hackHacker === 1) {
                         <span class="label">Hacker token aktív!</span>
-                        <span class="value">Felhasználható bármelyik hack tokenként!</span>
+                        <span class="value">Univerzális hack token!</span>
                       }
                     </div>
 
@@ -504,11 +507,9 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                     <div class="stats-row">
                       @if (room.game?.gymnastics !== "") {
                         <span class="label">Gymnastics aktív!</span>
-                        <span class="value">Walkway használható lépcsőként!</span>
+                        <span class="value">Walkway = lépcső!</span>
                       }
                     </div>
-
-                    <div class="stats-row"></div>
 
                   </div>
                   <div class="panel-middle">
@@ -993,6 +994,7 @@ export class RoomPageComponent implements AfterViewInit {
   async start(room: Room) {
     const floorCount = (room.floorCount ?? 3) as 2 | 3;
     const game = generateGame(room.seed, floorCount);
+    this.animatation= false
 
     for (let i = 0; i < this.seed.length; i++) {
       this.seednum = ((this.seednum << 5) - this.seednum) + this.seed.charCodeAt(i);
@@ -1394,7 +1396,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     // Őrrel való találkozás ellenőrzése
     let guardIdx = game.guardPositions[fIdx].pos.y * 4 + game.guardPositions[fIdx].pos.x;
-    if (guardIdx === tIdx && !this.isInvisible) {
+    if (guardIdx === tIdx && !this.isInvisible && !isAcrobat) {
       if (this.alreadyDamaged.indexOf(name) === -1) {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
@@ -2434,6 +2436,7 @@ export class RoomPageComponent implements AfterViewInit {
       game.hackMotion = 1
     }
     if (eventName === "DeadDrop"){
+      if (game.playerOrder.length === 1) {return}
       let rightPlayerIndex = (game.currentPlayerIdx - 1) < 0 ? game.playerOrder.length - 1 : (game.currentPlayerIdx - 1)
       let rightplayerName = game.playerOrder[rightPlayerIndex]
 
@@ -2920,8 +2923,24 @@ export class RoomPageComponent implements AfterViewInit {
     if (!room.game) return;
     if (this.needsCharacter(room)) return;
     if (this.isSpectator(room) || !this.isMyTurn(room) || room.game.inventory[this.playerName].loot.indexOf("Bust") !== -1) return
-    const ok = confirm(`Biztos elhasználod: ${tool}?`);
-    if (!ok) return;
+    const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+    const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
+    const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
+    const choice3 = document.getElementById("choice-3") as HTMLDialogElement;
+    choice1.innerText = "Elhasznál"
+    choice2.hidden = true
+    choice3.hidden = true
+    this.animatation = true;
+    dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {event.preventDefault();}});
+    dialog.showModal();
+    const choice = await new Promise<string>((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
+    choice2.hidden = false
+    choice3.hidden = false
+    this.animatation = false;
+    if (choice === "Cancel") return;
 
     const game = room.game;
 
@@ -3351,7 +3370,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     this.showBlueprintDialog = true;
     this.animatation = true;
-
+    this.cdr.detectChanges();
     return new Promise(resolve => {
       this.blueprintResolver = resolve;
     });
@@ -4056,9 +4075,12 @@ export class RoomPageComponent implements AfterViewInit {
       }
       await this.roomService.updatePlayerData(room.players[i], player)
     }
+    if ( room.game)
+    await this.roomService.setGameState(this.roomId, room.game);
   }
 
   async loseGame(game: GameState) {
+    this.animatation = false
     this.currentPhase = "lose"
     await this.roomService.setGamePhase(this.roomId,"lose")
 
@@ -4074,6 +4096,7 @@ export class RoomPageComponent implements AfterViewInit {
       player.gameCount++
       await this.roomService.updatePlayerData(this.playerList[i], player)
     }
+    await this.roomService.setGameState(this.roomId, game);
   }
 
   protected getCoLocatedPlayers(room: Room): string[] {
