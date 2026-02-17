@@ -200,6 +200,16 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
 
               <div class="game-layout">
                 <div class="side-panel-left">
+
+                    <div class="trade-actions" style="display:flex; gap:8px; align-items:center; margin: 4px 0;justify-content: center;padding-right: 60px;">
+                      <button
+                        [disabled] = "!(room.phase === 'play' && !isSpectator(room) && isMyTurn(room) && !needsCharacter(room) && getCoLocatedPlayers(room).length > 0)"
+                        class="btn btn-primary" (click)="giveItem(room);cdr.detectChanges();">Átadás</button>
+                      <button
+                        [disabled] = "!(room.phase === 'play' && !isSpectator(room) && isMyTurn(room) && !needsCharacter(room) && getCoLocatedPlayers(room).length > 0)"
+                        class="btn btn-primary" (click)="takeItem(room);cdr.detectChanges();">Elvétel</button>
+                    </div>
+
                   <div class="tools-inner" #toolsInner>
                     @for (loot of room.game?.inventory?.[playerName]?.loot?.slice(this.lootToolIndex, 3); track $index) {
                       @let imgUrl = getOrLoadTileImage('loot-' + loot);
@@ -374,7 +384,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                                 @if (tile.gold) {
                                   <div class="player-pawn" title="Gold">🧈</div>
                                 }
-                                @if (tile.notLooted || (!tile.empty && tile.type === "Laboratory")) {
+                                @if (tile.notLooted || (tile.revealed && !tile.empty && tile.type === "Laboratory")) {
                                   <div class="player-pawn" title="Loot">🎁</div>
                                 }
                                 @if (tile.crow || tile.slowCrow) {
@@ -779,7 +789,7 @@ export class RoomPageComponent implements AfterViewInit {
   private route = inject(ActivatedRoute);
   protected router = inject(Router);
   private roomService = inject(RoomService);
-  private cdr = inject(ChangeDetectorRef);
+  public cdr = inject(ChangeDetectorRef);
   private seed = '';
   private seednum = 0;
   protected diceValues = [0, 0, 0, 0, 0, 0];
@@ -4064,6 +4074,158 @@ export class RoomPageComponent implements AfterViewInit {
       player.gameCount++
       await this.roomService.updatePlayerData(this.playerList[i], player)
     }
+  }
+
+  protected getCoLocatedPlayers(room: Room): string[] {
+    if (!room?.game || !this.playerName) return [];
+    const myPos = room.game.playerPositions?.[this.playerName];
+    if (!myPos) return [];
+    return Object.entries(room.game.playerPositions)
+      .filter(([p, pos]) => p !== this.playerName && pos.floor === myPos.floor && pos.tileIdx === myPos.tileIdx)
+      .map(([p]) => p);
+  }
+
+  private transferInventoryItem(game: GameState, type: 'tool' | 'loot', from: string, to: string, idx: number) {
+    const arr = game.inventory?.[from]?.[type];
+    if (!arr || idx < 0 || idx >= arr.length) return;
+    const item = arr[idx];
+    // vedd ki
+    arr.splice(idx, 1);
+    // tedd a másik játékoshoz
+    game.inventory[to][type].push(item);
+  }
+
+
+  protected listItemsForPick(game: GameState, player: string, type: 'tool' | 'loot'): string[] {
+    return [...(game.inventory?.[player]?.[type] ?? [])];
+  }
+
+  protected async giveItem(room: Room) {
+    if (!room?.game || !this.isMyTurn(room) || this.needsCharacter(room)) return;
+    const game = JSON.parse(JSON.stringify(room.game)) as GameState;
+    const co = this.getCoLocatedPlayers(room);
+    if (co.length === 0) return;
+
+    const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+    const choice1 = document.getElementById("choice-1") as HTMLButtonElement;
+    const choice2 = document.getElementById("choice-2") as HTMLButtonElement;
+    const choice3 = document.getElementById("choice-3") as HTMLButtonElement;
+    const cancelBtn = document.getElementById("choice-cancel") as HTMLButtonElement;
+    const select = document.getElementById("choice-select") as HTMLSelectElement | null;
+
+    if (!select) return;
+
+    // 1) Típusválasztás
+    choice1.hidden = false; choice1.textContent = "Eszköz";
+    choice2.hidden = false; choice2.textContent = "Zsákmány";
+    choice3.hidden = true;  cancelBtn.hidden = false;
+    select.hidden = true;   select.innerHTML = "";
+
+    this.animatation = true;
+    dialog.addEventListener("cancel", (e) => e.preventDefault(), { once: true });
+    dialog.showModal();
+    const typePick = await new Promise<string>((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });
+    });
+    this.animatation = false;
+
+    if (typePick === "Cancel") {  this.cdr.detectChanges(); return; }
+    const type: 'tool' | 'loot' = typePick === "1" ? 'tool' : 'loot';
+
+    const myItems = this.listItemsForPick(game, this.playerName!, type);
+    if (myItems.length === 0) { this.cdr.detectChanges(); return;} // nincs mit adni
+
+    // 2) Konkrét tárgy kiválasztása a saját listámból
+    select.hidden = false; select.innerHTML = "";
+    myItems.forEach((it, i) => {
+      const opt = document.createElement("option"); opt.value = String(i); opt.textContent = it; select.appendChild(opt);
+    });
+    choice1.hidden = false; choice1.textContent = "Tovább";
+    choice2.hidden = true;  choice3.hidden = true; cancelBtn.hidden = false;
+    this.animatation = true; dialog.showModal();
+    await new Promise<void>((resolve)=>{ dialog.addEventListener("close", () => resolve(), { once: true })});
+    this.animatation = false;
+    if (dialog.returnValue === "Cancel") { select.hidden = true; select.innerHTML = "";  this.cdr.detectChanges(); return; }
+    const itemIdx = Number(select.value);
+
+    // 3) Cél játékos kiválasztása (azonos mezőn állók)
+    select.innerHTML = "";
+    co.forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p; select.appendChild(o); });
+    choice1.hidden = false; choice1.textContent = "Átadás";
+    this.animatation = true; dialog.showModal();
+    await new Promise<void>((resolve)=>{ dialog.addEventListener("close", () => resolve(), { once: true })});
+    this.animatation = false;
+
+    if (dialog.returnValue === "Cancel") { select.hidden = true; select.innerHTML = "";  this.cdr.detectChanges(); return; }
+    const to = select.value;
+    this.transferInventoryItem(game, type, this.playerName!, to, itemIdx);
+
+    // cleanup UI
+    select.hidden = true; select.innerHTML = "";
+
+    await this.roomService.setGameState(this.roomId, game);
+  }
+
+  /** Eszköz/loot ELVÉTELE egy velem azonos mezőn álló játékostól (ingyenes). */
+  protected async takeItem(room: Room) {
+    if (!room?.game || !this.isMyTurn(room) || this.needsCharacter(room)) return;
+    const game = JSON.parse(JSON.stringify(room.game)) as GameState;
+    const co = this.getCoLocatedPlayers(room);
+    if (co.length === 0) return; // nincs kitől
+
+    const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
+    const choice1 = document.getElementById("choice-1") as HTMLButtonElement;
+    const choice2 = document.getElementById("choice-2") as HTMLButtonElement;
+    const choice3 = document.getElementById("choice-3") as HTMLButtonElement;
+    const cancelBtn = document.getElementById("choice-cancel") as HTMLButtonElement;
+    const select = document.getElementById("choice-select") as HTMLSelectElement | null;
+    if (!select) return;
+
+    // 1) Forrás játékos kiválasztása
+    select.hidden = false; select.innerHTML = "";
+    co.forEach(p => { const o = document.createElement("option"); o.value = p; o.textContent = p; select.appendChild(o); });
+    choice1.hidden = false; choice1.textContent = "Tovább";
+    choice2.hidden = true;  choice3.hidden = true; cancelBtn.hidden = false;
+
+    this.animatation = true; dialog.addEventListener("cancel", (e)=>e.preventDefault(), { once: true }); dialog.showModal();
+    await new Promise<void>((resolve)=>{ dialog.addEventListener("close", ()=>resolve(), { once: true })});
+    this.animatation = false;
+    if (dialog.returnValue === "Cancel") { select.hidden = true; select.innerHTML = "";  this.cdr.detectChanges();return; }
+    const from = select.value;
+
+    // 2) Típus (tool/loot)
+    select.hidden = true; select.innerHTML = "";
+    choice1.hidden = false; choice1.textContent = "Eszköz";
+    choice2.hidden = false; choice2.textContent = "Zsákmány";
+    choice3.hidden = true;  cancelBtn.hidden = false;
+
+    this.animatation = true; dialog.showModal();
+    const typePick = await new Promise<string>((resolve)=>{ dialog.addEventListener("close", ()=>resolve(dialog.returnValue), { once: true })});
+    this.animatation = false;
+    if (typePick === "Cancel") { this.cdr.detectChanges(); return;}
+    const type: 'tool' | 'loot' = typePick === "1" ? 'tool' : 'loot';
+
+    const items = this.listItemsForPick(game, from, type);
+    if (items.length === 0) { this.cdr.detectChanges();return} // nincs mit elvenni
+
+    // 3) Konkrét tárgy kiválasztása a másik játékostól
+    select.hidden = false; select.innerHTML = "";
+    items.forEach((it, i)=>{ const o = document.createElement("option"); o.value = String(i); o.textContent = it; select.appendChild(o); });
+    choice1.hidden = false; choice1.textContent = "Elvétel";
+    choice2.hidden = true; choice3.hidden = true; cancelBtn.hidden = false;
+
+    this.animatation = true; dialog.showModal();
+    await new Promise<void>((resolve)=>{ dialog.addEventListener("close", ()=>resolve(), { once: true })});
+    this.animatation = false;
+
+    if (dialog.returnValue === "Cancel") { select.hidden = true; select.innerHTML = ""; this.cdr.detectChanges(); return; }
+    const idx = Number(select.value);
+
+    // Mozgatás from -> this.playerName
+    this.transferInventoryItem(game, type, from, this.playerName!, idx);
+
+    select.hidden = true; select.innerHTML = "";
+    await this.roomService.setGameState(this.roomId, game);
   }
 
 }
