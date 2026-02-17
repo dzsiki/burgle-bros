@@ -1,7 +1,7 @@
 import {Component, inject, HostListener, ChangeDetectorRef, ViewChild, ElementRef, AfterViewInit} from '@angular/core';
 import {AsyncPipe, NgOptimizedImage} from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import {RoomService, Room, GameState, getRoomDisplayName, Tile, Characters} from '../services/room';
+import {RoomService, Room, GameState, getRoomDisplayName, Tile, Characters, Player} from '../services/room';
 import { loadPlayerName } from '../services/player-storage';
 import { Router } from '@angular/router';
 import {eventList, generateGame, lootList, toolsList} from '../services/game-generator';
@@ -22,7 +22,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
               <div class="room-info">
                 <h1>{{ getRoomDisplayName(roomId) }}</h1>
                 <span class="status-badge" [class]="room.phase">
-                  {{ room.phase === 'lobby' ? 'Várakozás' : 'Játék' }}
+                  {{ room.phase }}
                   @if (isSpectator(room)) {
                     (Megfigyelő)
                   }
@@ -87,7 +87,7 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <button class="btn btn-outline" (click)="router.navigate(['/'])">Főoldal</button>
               }
 
-              @if (room.phase === 'play' && !isSpectator(room)) {
+              @if (room.phase !== 'lobby' && !isSpectator(room)) {
                 <button class="btn btn-danger" (click)="reset(roomId)">Reset</button>
               }
             </div>
@@ -181,7 +181,23 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
               <div class="lobby-start">
                 <button class="btn btn-primary btn-large" (click)="start(room)">Játék indítása</button>
               </div>
-            } @else if (room.phase === 'play') {
+            } @else {
+
+              @if (room.phase === 'win' && !hideWin) {
+                <div class="win-overlay">
+                <img src="/assets/win.png"
+                     alt="Win"
+                     class="win-image"
+                     (click)="hideWin = true">
+                </div>}
+              @if (room.phase === 'lose' && !hideWin) {
+                <div class="win-overlay">
+                <img src="/assets/lose.png"
+                     alt="Lose"
+                     class="win-image"
+                     (click)="hideWin = true">
+                </div>}
+
               <div class="game-layout">
                 <div class="side-panel-left">
                   <div class="tools-inner" #toolsInner>
@@ -340,18 +356,6 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                                 <span class="tile-type">?</span>
                               }
 
-                              <!-- Guard figure if a guard is on this tile -->
-                              @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
-                                <div class="guard-figure" title="Őr">🛡️</div>
-                              }
-                              <!-- Crosshair if this tile is a guard's target -->
-                              @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
-                                <div class="guard-target" title="Őr célpont">🎯</div>
-                              }
-                              @if (isAlarmOnTile(room, activeFloorIdx, tIdx)) {
-                                <div class="guard-target" title="Alarm">🚨</div>
-                              }
-
                               <div class="walls">
                                 <div class="wall wall-top" [class.is-real]="tile.walls.top"></div>
                                 <div class="wall wall-right" [class.is-real]="tile.walls.right"></div>
@@ -370,8 +374,20 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                                 @if (tile.gold) {
                                   <div class="player-pawn" title="Gold">🧈</div>
                                 }
-                                @if (tile.notLooted) {
+                                @if (tile.notLooted || (!tile.empty && tile.type === "Laboratory")) {
                                   <div class="player-pawn" title="Loot">🎁</div>
+                                }
+                                @if (tile.crow || tile.slowCrow) {
+                                  <div class="player-pawn" title="Crow">🐦</div>
+                                }
+                                @if (isGuardOnTile(room, activeFloorIdx, tIdx)) {
+                                  <div class="guard-figure player-pawn" title="Őr">🛡️</div>
+                                }
+                                @if (isGuardTargetTile(room, activeFloorIdx, tIdx)) {
+                                  <div class="guard-target player-pawn" title="Őr célpont">🎯</div>
+                                }
+                                @if (isAlarmOnTile(room, activeFloorIdx, tIdx)) {
+                                  <div class="guard-target player-pawn" title="Alarm">🚨</div>
                                 }
                               </div>
                               @if (tile.revealed) {
@@ -578,8 +594,10 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
                 <button id="choice-5" class="btn btn-success" value="5" hidden>5</button>
                 <button id="choice-6" class="btn btn-success" value="6" hidden>6</button>
                 <div id="choice-img-wrap" class="image-wrapper" hidden>
-                  <img id="choice-img-1" class="tool-choice-img" alt="Option 1" onclick="this.closest('dialog').close('1')">
-                  <img id="choice-img-2" class="tool-choice-img" alt="Option 2" onclick="this.closest('dialog').close('2')">
+                  <img id="choice-img-1" class="tool-choice-img" alt="Option 1"
+                       onclick="this.closest('dialog').close('1')">
+                  <img id="choice-img-2" class="tool-choice-img" alt="Option 2"
+                       onclick="this.closest('dialog').close('2')">
                 </div>
                 <button id="choice-cancel" class="btn btn-danger" value="Cancel">Mégse</button>
               </div>
@@ -587,19 +605,29 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
           </dialog>
 
           @if (showBlueprintDialog) {
-            <div class="overlay">
+            <div id="blueprintDialog" class="overlay">
               <div class="modal">
+
+                <button class="peek-btn"
+                        (mousedown)="startPeek()"
+                        (mouseup)="endPeek()"
+                        (mouseleave)="endPeek()"
+                        (touchstart)="startPeek()"
+                        (touchend)="endPeek()">
+                  👁️
+                </button>
+
                 <h4>{{ blueprintHeaderText }}</h4>
 
                 <div class="floorTabs">
-                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0">1.
+                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 0" (click)="blueprintFloorIdx = 0; activeFloorIdx = 0">1.
                     szint
                   </button>
-                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1">2.
+                  <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 1" (click)="blueprintFloorIdx = 1; activeFloorIdx = 1">2.
                     szint
                   </button>
                   @if (room.floorCount === 3) {
-                    <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2">3.
+                    <button [class.activeblueprintfloorbtn]="blueprintFloorIdx == 2" (click)="blueprintFloorIdx = 2; activeFloorIdx = 2">3.
                       szint
                     </button>
                   }
@@ -692,6 +720,47 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
               </div>
             </div>
           }
+          @if (showSpotterDialog) {
+            <div class="overlay">
+              <div class="modal">
+                <h4>{{ spotterHeader }}</h4>
+
+                <!-- Ha Patrol deck akkor 4x4 mátrixot rajzolunk -->
+                @if (spotterIsPatrol) {
+                  <div class="patrol-grid">
+                    @for (i of [0, 1, 2, 3]; track i) {
+                      <div class="patrol-row">
+                        @for (j of [0, 1, 2, 3]; track j) {
+                          <div class="patrol-cell">
+                            @if (i === spotterY && j === spotterX) {
+                              🎯
+                            } @else {
+
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+
+                <!-- Ha Event deck, marad a sima kép -->
+                @else {
+                  @if (spotterCardName) {
+                    @let imgUrl = getOrLoadTileImage('event-' + spotterCardName);
+                    @if (imgUrl && imgUrl != '') {
+                      <img class="eventImg" src="{{ imgUrl }}" alt="{{ spotterCardName }}">
+                    } @else {
+                      <div>{{ spotterCardName }}</div>
+                    }
+                  }
+                }
+
+                <button class="btn eventOk" (click)="resolveSpotter('top')">Felülre</button>
+                <button class="btn eventOk" (click)="resolveSpotter('bottom')">Alulra</button>
+              </div>
+            </div>
+          }
 
 
           <style>
@@ -717,10 +786,10 @@ export class RoomPageComponent implements AfterViewInit {
   diceMap = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   lootToolIndex = 0;
   floorCount: 2 | 3 = 3
-
+  hideWin = false
   roomId = this.route.snapshot.paramMap.get('id')!;
-
-  private currentPhase: 'lobby' | 'play' | 'end' = 'lobby';
+  playerList:string[] = []
+  private currentPhase: 'lobby' | 'play' | 'win' | 'lose' = 'lobby';
 
   room$ = this.roomService.watchRoom(this.roomId).pipe(
     tap(r => {
@@ -728,6 +797,7 @@ export class RoomPageComponent implements AfterViewInit {
         this.seed = r.seed;
         this.currentPhase = r.phase;
         this.floorCount = r.floorCount
+        this.playerList = r.players
         // Ha most kezdődött a játék és van pozíciónk, ugorjunk oda
         if (r.phase === 'play' && r.game) {
           const myPos = r.game.playerPositions?.[this.playerName ?? ''];
@@ -969,8 +1039,19 @@ export class RoomPageComponent implements AfterViewInit {
   protected canMove(room: Room, fIdx: number, tIdx: number, dir: 'up' | 'right' | 'bottom' | 'left' | 'floorUp' | 'floorDown'): boolean {
     if (this.isSpectator(room) || !room.game || !this.isMyTurn(room) || this.needsCharacter(room)) return false;
 
+    let allLooted = true
+    for (let i = 0; i < this.floorCount; i++) {
+      if (!room.game.floors[i].safeOpened){
+        allLooted = false;break;}
+      for (let j = 0; j < 16; j++) {
+        if(room.game.floors[i].tiles[j].notLooted || !room.game?.floors[i].tiles[j].cat || !room.game?.floors[i].tiles[j].gold){
+          allLooted = false;break;
+        }
+      }
+    }
+
     if (dir === 'floorUp') {
-      return fIdx < this.floorCount - 1
+      return (fIdx < this.floorCount - 1 || (fIdx === this.floorCount -1 && allLooted))
         && (room.game.floors[fIdx].tiles[tIdx].type === 'Stairs' || room.game.floors[fIdx].tiles[tIdx].thermalStairsUp
         || ((room.game.gymnastics !== "" && room.game.floors[fIdx].tiles[tIdx].type === 'Walkway')))
         && room.game.timelock === "";
@@ -1001,7 +1082,7 @@ export class RoomPageComponent implements AfterViewInit {
       return x === 0 || x === 3 || y === 0 || y === 3;
     }
 
-    if ((myPos.floor != fIdx && myPos.tileIdx != tIdx) && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].revealed && room.game.inventory[this.playerName].loot.indexOf("Painting") === -1) return true
+    if ((myPos.floor != fIdx || myPos.tileIdx != tIdx) && room.game.floors[myPos.floor].tiles[myPos.tileIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].type === 'ServiceDuct' && room.game.floors[fIdx].tiles[tIdx].revealed && room.game.inventory[this.playerName].loot.indexOf("Painting") === -1) return true
 
 
     // Szinten belüli mozgás/peek
@@ -1156,6 +1237,33 @@ export class RoomPageComponent implements AfterViewInit {
     const game: GameState = JSON.parse(JSON.stringify(room.game));
     const name = this.playerName ?? '';
 
+    if (fIdx === this.floorCount && game.currentAP > 0){
+      game.playerOrder.splice(game.playerOrder.indexOf(this.playerName), 1)
+      delete game.playerPositions[this.playerName];
+      if(game.playerOrder.length === 0){
+        await this.winGame(room)
+        await this.roomService.setGameState(this.roomId, game);
+        return
+      }
+
+      game.currentPlayerIdx = game.currentPlayerIdx % game.playerOrder.length
+
+      if (game.emp === game.playerOrder[game.currentPlayerIdx]){
+        game.emp = ""
+      }
+      if (game.timelock === game.playerOrder[game.currentPlayerIdx]){
+        game.timelock = ""
+      }
+      if (game.cameraloop === game.playerOrder[game.currentPlayerIdx]){
+        game.cameraloop = ""
+      }
+      if (game.gymnastics === game.playerOrder[game.currentPlayerIdx]){
+        game.gymnastics = ""
+      }
+      await this.roomService.setGameState(this.roomId, game);
+      return
+    }
+
     let occupiedandgemstone = false;
     for (const player in game.playerPositions) {
       if (game.playerPositions[player].floor === fIdx && game.playerPositions[player].tileIdx === tIdx) {
@@ -1281,7 +1389,9 @@ export class RoomPageComponent implements AfterViewInit {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
-        game.healths[name] = (game.healths[name] || 1) - 1;}
+        game.healths[name] = (game.healths[name] || 1) - 1;
+        if(game.healths[name] === 0){ await this.loseGame(game); return}
+      }
       this.alreadyDamaged.push(name)
     }}
 
@@ -1290,7 +1400,7 @@ export class RoomPageComponent implements AfterViewInit {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
-        game.healths[name] = (game.healths[name] || 1) - 1;}
+        game.healths[name] = (game.healths[name] || 1) - 1;if(game.healths[name] === 0){ await this.loseGame(game); return}}
       this.alreadyDamaged.push(name)
     }}
 
@@ -1305,7 +1415,7 @@ export class RoomPageComponent implements AfterViewInit {
       if (game.floors[fIdx].tiles[tIdx].stealthtoken>0) {
         game.floors[fIdx].tiles[tIdx].stealthtoken --;
       }else {
-        game.healths[name] = (game.healths[name] || 1) - 1;}
+        game.healths[name] = (game.healths[name] || 1) - 1;if(game.healths[name] === 0){ await this.loseGame(game); return}}
       this.alreadyDamaged.push(name)
     }}
 
@@ -1546,6 +1656,14 @@ export class RoomPageComponent implements AfterViewInit {
     if ( guard.donut ) {
       guard.donut = false
       await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
+      this.animatation = false
+      return
+    }
+    if(game.floors[floorIdx].tiles[guard.pos.y * 4 + guard.pos.x].crow && game.floors[floorIdx].alarms.length === 0){
+      game.crow = false
+      game.floors[floorIdx].tiles[guard.pos.y * 4 + guard.pos.x].crow = false
+      await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
+      this.animatation = false
       return
     }
 
@@ -1655,7 +1773,7 @@ export class RoomPageComponent implements AfterViewInit {
           if (game.floors[floorIdx].tiles[nextIdx].stealthtoken>0) {
             game.floors[floorIdx].tiles[nextIdx].stealthtoken --;
           }else {
-            game.healths[player] = (game.healths[player] || 1) - 1;}
+            game.healths[player] = (game.healths[player] || 1) - 1;if(game.healths[player] === 0){ await this.loseGame(game); return}}
           this.alreadyDamaged.push(this.playerName)
         }}
 
@@ -1664,11 +1782,11 @@ export class RoomPageComponent implements AfterViewInit {
           if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
             game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
           }else {
-            game.healths[player] = (game.healths[player] || 1) - 1;}
+            game.healths[player] = (game.healths[player] || 1) - 1;if(game.healths[player] === 0){ await this.loseGame(game); return}}
           this.alreadyDamaged.push(player)
         }}
 
-        if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby' || game.inventory[player].loot.indexOf("Tiara") !== -1){
+        if(game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].type === 'Lobby'){
           if (this.isAdjacent(game.playerPositions[player].floor, game.playerPositions[player].tileIdx, floorIdx, nextIdx)) {
 
               const x1 = game.playerPositions[player].tileIdx % 4;
@@ -1685,12 +1803,15 @@ export class RoomPageComponent implements AfterViewInit {
                 if (game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken>0) {
                   game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].stealthtoken --;
                 }else {
-                  game.healths[player] = (game.healths[player] || 1) - 1;}
+                  game.healths[player] = (game.healths[player] || 1) - 1;if(game.healths[player] === 0){ await this.loseGame(game); return}}
                 this.alreadyDamaged.push(player)
             }}
           }
         }
       }
+
+      if (game.floors[floorIdx].tiles[nextIdx].slowCrow) {i++;}
+
 
       await this.roomService.setGameState(this.roomId, JSON.parse(JSON.stringify(game)));
       await new Promise(res => setTimeout(res, 2000/guard.speed)); // delay based on speed
@@ -1701,7 +1822,7 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   protected isMyTurn(room: Room): boolean {
-    return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName && !this.animatation;
+    return room.game?.playerOrder?.[room.game.currentPlayerIdx] === this.playerName && !this.animatation && room.phase === "play";
   }
 
   async endTurn(room: Room) {
@@ -1741,6 +1862,7 @@ export class RoomPageComponent implements AfterViewInit {
 
       if (game.playerPositions[this.playerName].tileIdx === guardTileIdx) {
         game.healths[this.playerName] = (game.healths[this.playerName] ?? 0) - 1;
+        if(game.healths[this.playerName] === 0){ await this.loseGame(game); return}
       }
     }
 
@@ -2065,6 +2187,9 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (!cracks.includes(false)) {
       room.game.floors[activeFloorIdx].safeOpened = true;
+      for (let i = 0; i <= activeFloorIdx; i++) {
+        room.game.guardPositions[i].speed += 1
+      }
       if (activeFloorIdx === room.game.playerPositions[this.playerName].floor){
         await this.drawLoot(room.game, this.playerName)
         await this.drawTool(room.game, this.playerName)
@@ -2257,6 +2382,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     if (game.loots[0] === "Goblet"){
       game.healths[player] = (game.healths[player] || 1) - 1;
+      if(game.healths[player] === 0){ await this.loseGame(game); return}
     }
     if (game.loots[0] === "Gold"){
       game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].gold = true
@@ -2505,7 +2631,7 @@ export class RoomPageComponent implements AfterViewInit {
       else
         choice6.hidden = true
 
-      closebtn.hidden = true
+      closebtn.hidden = false
 
       this.animatation = true
 
@@ -2736,6 +2862,7 @@ export class RoomPageComponent implements AfterViewInit {
             floor.tiles[nextIdx].stealthtoken--;
           } else {
             game.healths[pName] = (game.healths[pName] ?? 0) - 1;
+            if(game.healths[pName] === 0){ await this.loseGame(game); return}
           }
           this.alreadyDamaged.push(pName)
         }
@@ -2865,6 +2992,18 @@ export class RoomPageComponent implements AfterViewInit {
     }
 
     if (tool === 'Blueprint') {
+      let everythingRevealed = true
+      for (let i = 0; i < this.floorCount; i++) {
+        for (let j = 0; j < 16; j++) {
+          if (!game.floors[i].tiles[j].revealed){
+            everythingRevealed = false
+            break;
+          }
+        }
+      }
+
+      if(everythingRevealed) {return}
+
       const { fIdx, tIdx } = await this.askBlueprintTarget(room);
 
       game.floors[fIdx].tiles[tIdx].revealed = true;
@@ -3312,7 +3451,7 @@ export class RoomPageComponent implements AfterViewInit {
   }
 
   canUseCharacterSpell(room: Room): boolean{
-    if(room.game?.playerCharacter[this.playerName] === "AcrobatHard" && room.game.currentAP >= 3 && [5,6,9,10].indexOf(room.game.playerPositions[this.playerName].tileIdx) === -1){
+    if(room.game?.playerCharacter[this.playerName] === "AcrobatHard" && room.game.currentAP >= 3 && room.game.playerPositions[this.playerName] && [5,6,9,10].indexOf(room.game.playerPositions[this.playerName].tileIdx) === -1){
       return true}
     if(room.game?.playerCharacter[this.playerName] === "HackerHard" && room.game.currentAP > 0 && room.game.hackHacker === 0){
       return true}
@@ -3332,14 +3471,22 @@ export class RoomPageComponent implements AfterViewInit {
       return true}
     if(room.game?.playerCharacter[this.playerName] === "Rook" && Object.keys(room.game.playerPositions).length > 1 && !this.rookMoved && room.game.currentAP > 0){
       return true;}
+    if(room.game?.playerCharacter[this.playerName] === 'Spotter' && room.game?.currentAP > 0 && !this.spotterSpotted){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === 'SpotterHard' && room.game?.currentAP > 0 && !this.spotterSpotted){
+      return true}
+    if(room.game?.playerCharacter[this.playerName] === "RavenHard"){
+      return true}
+
+    return room.game?.playerCharacter[this.playerName] === "Raven";
 
 
-    return false
   }
 
   hawkPeeked = false
   rookMoved = false
   rookMode = false;
+  spotterSpotted = false
   protected async useCharacterSpell(room: Room) {
     if (!room.game) return
 
@@ -3489,6 +3636,8 @@ export class RoomPageComponent implements AfterViewInit {
       if (this.canMove(room, f, t, 'floorDown') && f > 0) {
         if (!game.floors[f - 1].tiles[t].revealed) mask[f - 1][t] = true;
       }
+
+      if((Object.values(mask).flat().every(value => !value))) {return}
 
       // 5) Ugyanaz a dialógus, más fejléc + maszk
       const { fIdx, tIdx } = await this.askBlueprintTarget(room, {
@@ -3715,7 +3864,206 @@ export class RoomPageComponent implements AfterViewInit {
       choice3.hidden = false;
     }
 
+    if (game.playerCharacter[this.playerName] === "Spotter" && room.game?.currentAP > 0 && !this.spotterSpotted) {
+      const floor = game.playerPositions[this.playerName].floor;
+      const deck = game.guardPositions[floor].moves; // nálad lehet más nevű → igazítsd!
+
+      const topCard = deck[0];
+
+      const choice = await this.askSpotterPatrol(topCard.x, topCard.y, "Patrol pakli – következő lépés");
+      updatedGame.currentAP -= 1
+      this.spotterSpotted = true
+      if (choice === 'top') {
+        // nem kell semmi, marad fenn
+      } else {
+        deck.push(deck.shift()!); // top → bottom
+      }
+
+      updatedGame.guardPositions[floor].moves = deck;
+    }
+
+    if (game.playerCharacter[this.playerName] === "SpotterHard" && room.game?.currentAP > 0 && !this.spotterSpotted) {
+      const deck = game.events;
+      const topCard = deck[0];
+      this.spotterIsPatrol = false
+      const choice = await this.askSpotter(topCard, "Event pakli megtekintése");
+      updatedGame.currentAP -= 1
+      this.spotterSpotted = true
+      if (choice === 'top') {
+        // fent hagy
+      } else {
+        deck.push(deck.shift()!);
+      }
+      updatedGame.events = deck;
+    }
+
+    if (game.playerCharacter[this.playerName] === "RavenHard"){
+      updatedGame.crow = true
+      for (let f = 0; f < this.floorCount; f++) {
+        for (let i = 0; i < 16; i++) {
+          updatedGame.floors[f].tiles[i].crow = false;
+        }
+      }
+      updatedGame.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].crow = true
+    }
+
+    if (game.playerCharacter[this.playerName] === "Raven") {
+      const { fIdx, tIdx } = await this.askRavenTarget(room);
+
+      // Előző holló törlése
+      for (let f = 0; f < this.floorCount; f++) {
+        for (let i = 0; i < 16; i++) {
+          game.floors[f].tiles[i].slowCrow = false;
+        }
+      }
+
+      // Új holló lerakása
+      game.floors[fIdx].tiles[tIdx].slowCrow = true;
+
+      await this.roomService.setGameState(this.roomId, game);
+      return;
+    }
+
+
     if (updatedGame)
     await this.roomService.setGameState(this.roomId, updatedGame);
   }
+
+  showSpotterDialog = false;
+  spotterCardName: string | null = null;
+  spotterHeader = '';
+  spotterIsPatrol = false;
+  private spotterResolver: ((value: 'top' | 'bottom') => void) | null = null;
+  private askSpotter(cardName: string, header: string): Promise<'top' | 'bottom'> {
+    this.spotterCardName = cardName;
+    this.spotterHeader = header;
+    this.showSpotterDialog = true;
+    this.animatation = true;
+
+    return new Promise(resolve => {
+      this.spotterResolver = resolve;
+    });
+  }
+
+
+  spotterX = 0;
+  spotterY = 0;
+  private askSpotterPatrol(x: number, y: number, header: string): Promise<'top' | 'bottom'> {
+    this.spotterIsPatrol = true;
+    this.spotterX = x;
+    this.spotterY = y;
+    return this.askSpotter("", header);
+  }
+
+
+  resolveSpotter(choice: 'top' | 'bottom') {
+    if (!this.spotterResolver) return;
+
+    this.showSpotterDialog = false;
+    this.animatation = false;
+
+    this.spotterResolver(choice);
+    this.spotterResolver = null;
+  }
+
+  async askRavenTarget(room: Room): Promise<{ fIdx: number; tIdx: number }> {
+    const game = room.game!;
+    const myPos = game.playerPositions[this.playerName];
+    const f = myPos.floor;
+    const t = myPos.tileIdx;
+
+    // Mask előkészítése
+    const mask: Record<number, boolean[]> = {};
+    for (let i = 0; i < this.floorCount; i++) mask[i] = Array(16).fill(false);
+
+    const queue = [{ idx: t, dist: 0 }];
+    const visited = new Set([t]);
+
+    while (queue.length) {
+      const { idx, dist } = queue.shift()!;
+      if (dist === 2) continue; // maximum 2 lépés
+
+      const neighbors = [
+        { dx: 0, dy: -1, n: idx - 4 }, // up
+        { dx: 1, dy: 0, n: idx + 1 },
+        { dx: 0, dy: 1, n: idx + 4 },
+        { dx: -1, dy: 0, n: idx - 1 }
+      ];
+
+      for (const nb of neighbors) {
+        if (nb.n < 0 || nb.n > 15) continue;
+
+        // csak ha nincs fal közöttünk
+        if (this.isWallBetween(room, f, idx, nb.n)) continue;
+
+        if (!visited.has(nb.n)) {
+          visited.add(nb.n);
+          queue.push({ idx: nb.n, dist: dist + 1 });
+          mask[f][nb.n] = true;
+        }
+      }
+    }
+
+    // blueprint dialog meghívása
+    const { fIdx, tIdx } = await this.askBlueprintTarget(room, {
+      allowedMask: mask,
+      header: "Raven – válaszd ki a holló célmezőjét"
+    });
+
+    return { fIdx, tIdx };
+  }
+
+  startPeek() {
+    const dlg = document.getElementById("blueprintDialog");
+    if (dlg) dlg.classList.add("peek-mode");
+  }
+
+  endPeek() {
+    const dlg = document.getElementById("blueprintDialog");
+    if (dlg) dlg.classList.remove("peek-mode");
+  }
+
+  async winGame(room: Room){
+    this.currentPhase = "win"
+    await this.roomService.setGamePhase(this.roomId,"win")
+
+    if(room.game)
+    for (let i = 0; i < this.floorCount; i++) {
+      for (let j = 0; j < 16; j++) {
+        room.game.floors[i].tiles[j].revealed = true
+      }
+    }
+
+    for (let i = 0; i < room.players.length; i++) {
+      let player: Player = await this.roomService.getPlayerData(room.players[i])
+      player.gameCount++
+      player.winCount++
+      if (room.game)
+      for (let j = 0; j < room.game.inventory[room.players[i]].loot.length; j++) {
+        if(player.inventory.indexOf(room.game.inventory[room.players[i]].loot[j]) === -1){
+          player.inventory.push(room.game.inventory[room.players[i]].loot[j])
+        }
+      }
+      await this.roomService.updatePlayerData(room.players[i], player)
+    }
+  }
+
+  async loseGame(game: GameState) {
+    this.currentPhase = "lose"
+    await this.roomService.setGamePhase(this.roomId,"lose")
+
+    if(game)
+      for (let i = 0; i < this.floorCount; i++) {
+        for (let j = 0; j < 16; j++) {
+          game.floors[i].tiles[j].revealed = true
+        }
+      }
+
+    for (let i = 0; i < this.playerList.length; i++) {
+      let player: Player = await this.roomService.getPlayerData(this.playerList[i])
+      player.gameCount++
+      await this.roomService.updatePlayerData(this.playerList[i], player)
+    }
+  }
+
 }

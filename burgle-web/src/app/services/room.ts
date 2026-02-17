@@ -2,7 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   Firestore, collection, collectionData, doc, docData,
-  updateDoc, arrayUnion, arrayRemove
+  updateDoc, arrayUnion, arrayRemove, getDoc, setDoc
 } from '@angular/fire/firestore';
 
 import { Observable } from 'rxjs';
@@ -35,7 +35,9 @@ export interface Tile {
   thermalStairsDown: boolean;
   cat: boolean;
   gold: boolean;
-  notLooted: boolean
+  notLooted: boolean;
+  crow: boolean;
+  slowCrow: boolean
 }
 
 export interface keypadTile {
@@ -75,16 +77,23 @@ export interface GameState {
   cameraloop: string;
   gymnastics: string;
   juicerToken: number;
+  crow: boolean;
 }
 
 export type Room = {
   name: string;
-  phase: 'lobby' | 'play' | 'end';
+  phase: 'lobby' | 'play' | 'win' | 'lose';
   seed: string;
   players: string[];
   game?: GameState;
   floorCount: 2 | 3;
 };
+
+export type Player = {
+  gameCount: number;
+  winCount: number;
+  inventory: string[];
+}
 
 export const ROOM_NAME_MAP: Record<string, string> = {
   'Room1': 'Siemens Iroda',
@@ -178,6 +187,32 @@ export class RoomService {
       game: game,
       updatedAt: Date.now(),
     });
+  }
+
+  async setGamePhase(roomId: string, phase: string) {
+    const ref = doc(this.fs, `Rooms/${roomId}`);
+    await updateDoc(ref, {
+      phase: phase,
+      updatedAt: Date.now(),
+    });
+  }
+
+  async updatePlayerData(name: string, data: Player){
+    const ref = doc(this.fs, `Stats/${name}`);
+    await setDoc(ref, data, { merge: true });
+  }
+
+  async getPlayerData(name: string){
+    const ref = doc(this.fs, `Stats/${name}`);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      return {
+      gameCount: 0,
+      winCount: 0,
+      inventory: []
+    }}
+
+    return snap.data() as Player;
   }
 
 }

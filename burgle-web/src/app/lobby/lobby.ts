@@ -1,15 +1,15 @@
-
-import { Component, inject } from '@angular/core';
-import { AsyncPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RoomService, Room, getRoomDisplayName } from '../services/room';
-import { loadPlayerName, savePlayerName } from '../services/player-storage';
-import { Router } from '@angular/router';
+import {Component, inject} from '@angular/core';
+import {AsyncPipe} from '@angular/common';
+import {FormsModule} from '@angular/forms';
+import {getRoomDisplayName, Player, Room, RoomService} from '../services/room';
+import {loadPlayerName, savePlayerName} from '../services/player-storage';
+import {Router} from '@angular/router';
+import {ProfileComponent} from '../profile/profile';
 
 @Component({
   selector: 'app-lobby',
   standalone: true,
-  imports: [AsyncPipe, FormsModule],
+  imports: [AsyncPipe, FormsModule, ProfileComponent],
   template: `
     <div class="lobby-container">
       <header class="lobby-header">
@@ -20,6 +20,7 @@ import { Router } from '@angular/router';
         @if (savedName) {
           <div class="user-info">
             <span class="welcome">Szia, <strong>{{ savedName }}</strong>!</span>
+            <button class="profile-btn" (click)="showProfile = true" title="Profil">👤</button>
             <button class="btn btn-text" (click)="clearName()">Kilépés</button>
           </div>
         }
@@ -54,7 +55,7 @@ import { Router } from '@angular/router';
                         <h3>{{ getRoomDisplayName(r.id) }}</h3>
                       </div>
                       <div class="status-badge" [class]="r.phase">
-                        {{ r.phase === 'lobby' ? 'Várakozás' : 'Játék' }}
+                        {{ r.phase }}
                       </div>
                     </div>
 
@@ -100,6 +101,16 @@ import { Router } from '@angular/router';
             </div>
           </div>
         }
+
+        @if (showProfile && selectedPlayer) {
+          <app-profile
+            [player]="selectedPlayer"
+            [playerName]="savedName"
+            (close)="showProfile = false">
+          </app-profile>
+        }
+
+
       </main>
     </div>
 
@@ -113,6 +124,27 @@ import { Router } from '@angular/router';
         color: #2d3748;
         overflow-y: auto;
       }
+
+
+      .profile-btn {
+        background: none;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 0.15rem 0.35rem;
+        font-size: 0.85rem;
+        color: #4a5568;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+      }
+      .profile-btn:hover { background: #edf2f7; border-color: #cbd5e0; }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 40;
+      }
+
 
       .lobby-container {
         max-width: 1000px;
@@ -359,7 +391,17 @@ export class LobbyComponent {
     // induláskor betöltjük a mentett nevet
     this.savedName = loadPlayerName();
     this.playerName = this.savedName; // kényelmi: inputba is beírjuk
+    this.loadProfile(this.savedName)
   }
+
+
+  selectedPlayer: Player | null = null;
+  showProfile = false
+  async loadProfile(name: string,) {
+    this.selectedPlayer = await this.roomService.getPlayerData(name)
+  }
+
+
 
   saveName() {
     const clean = (this.playerName ?? '').trim();

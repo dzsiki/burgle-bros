@@ -661,9 +661,7 @@ html, body {
 }
 
 .guard-figure, .guard-target {
-  position: absolute;
-  font-size: 2.2rem;
-  z-index: 10;
+
   pointer-events: none;
   user-select: none;
   animation: pulseAlarm 1.2s infinite ease-in-out;
@@ -990,7 +988,31 @@ html, body {
 
   /* kis “glass” hatás */
   backdrop-filter: blur(6px);
+  transition: opacity 0.1s ease;
 }
+.overlay.peek-mode {
+  opacity: 0.25;
+  pointer-events: none; /* de a gomb eseményei ettől függetlenül működnek */
+}
+
+.peek-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 10;
+  padding: 6px 10px;
+  font-size: 18px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: 1px solid #888;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.peek-btn:active {
+  background: black;
+}
+
+
 
 .modal{
   /* kártya + enyhe színátmenet */
@@ -1559,4 +1581,48 @@ dialog button[hidden],
 dialog select[hidden],
 dialog div[hidden] {
   display: none !important;
+}
+
+.patrol-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.patrol-row {
+  display: flex;
+  gap: 4px;
+  align-self: center;
+}
+
+.patrol-cell {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  font-size: 75px;
+  align-items: center;
+  justify-content: center;
+  background: #222;
+  border: 1px solid #555;
+  border-radius: 4px;
+}
+
+.win-overlay {
+  position: fixed;
+  inset: 0;                 /* top:0; right:0; bottom:0; left:0 */
+  display: flex;
+  align-items: center;      /* függőleges közép */
+  justify-content: center;  /* vízszintes közép */
+  background: rgba(0,0,0,0.6);   /* opcionális sötétítés */
+  z-index: 99999;                /* mindent takarjon */
+}
+
+.win-image {
+  width: 100vw;         /* ne lógjon ki vízszintesen */
+  height: 100vh;        /* ne lógjon ki függőlegesen */
+  object-fit: contain;      /* aránytartás, ne torzuljon */
+  user-select: none;
+  -webkit-user-drag: none;
+  cursor: pointer;          /* jelezze, hogy kattintható */
 }

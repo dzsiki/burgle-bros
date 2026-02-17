@@ -56,9 +56,9 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
     const x = i % 4;
     const y = Math.floor(i / 4);
     topFloorIfTwo.push({
-      type: 'Disabled', revealed: false, walls: {top: y === 0, right: x === 3, bottom: y === 3, left: x === 0},
+      type: 'Disabled', revealed: true, walls: {top: y === 0, right: x === 3, bottom: y === 3, left: x === 0},
       tokens: 0, number: Math.floor(random() * 6) + 1, cracked: false, empty: false, stealthtoken: 0,
-      thermalStairsUp: false, thermalStairsDown: false, cat: false, gold: false,notLooted: false})
+      thermalStairsUp: false, thermalStairsDown: false, cat: false, gold: false,notLooted: false, crow:false, slowCrow: false})
   }
   floors.push({tiles: topFloorIfTwo, alarms: [], safeOpened: false})
 
@@ -112,7 +112,8 @@ export function generateGame(seed: string, floorCount: 2 | 3 = 3): GameState {
     timelock: "",
     cameraloop: "",
     gymnastics: "",
-    juicerToken: 0
+    juicerToken: 0,
+    crow:false
   };
 }
 
@@ -155,7 +156,9 @@ function generateFloor(random: () => number, rooms: TileType[]): Floor {
       thermalStairsDown: false,
       cat: false,
       gold: false,
-      notLooted: false
+      notLooted: false,
+      crow: false,
+      slowCrow: false
     });
   }
 
@@ -234,3 +237,5 @@ function isEverythingAccessible(tiles: Tile[]): boolean {
 
   return visited.size === 16;
 }
+
+
