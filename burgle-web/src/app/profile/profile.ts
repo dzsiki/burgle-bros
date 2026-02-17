@@ -37,15 +37,25 @@ const LOOT_LIST = [
                   <circle cx="100" cy="100" r="70" class="donut-ring"/>
 
                   @if (p.gameCount > 0 && p.winCount > 0) {
+                    @if (p.gameCount !== p.winCount) {
                     <path
                       class="slice-wins"
                       [attr.d]="describeArc(100,100,70, -90, -90 + winsAngle(p))"/>
+                    }
+                    @else{
+                      <circle cx="100" cy="100" r="70" class="slice-wins" [attr.stroke-dasharray]="440"/>
+                    }
                   }
 
-                  @if (p.gameCount > 0 && (p.gameCount - p.winCount) > 0) {
-                    <path
-                      class="slice-losses"
-                      [attr.d]="describeArc(100,100,70, -90 + winsAngle(p), 270)"/>
+                  @if (p.gameCount > 0 ) {
+                    @if (p.winCount !==  0) {
+                      <path
+                        class="slice-losses"
+                        [attr.d]="describeArc(100,100,70, -90 + winsAngle(p), 270)"/>
+                    }
+                    @else{
+                      <circle cx="100" cy="100" r="70" class="slice-losses" [attr.stroke-dasharray]="440"/>
+                    }
                   }
 
                   @if (p.gameCount === 0) {

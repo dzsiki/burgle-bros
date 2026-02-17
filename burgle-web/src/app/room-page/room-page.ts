@@ -1054,7 +1054,7 @@ export class RoomPageComponent implements AfterViewInit {
       if (!room.game.floors[i].safeOpened){
         allLooted = false;break;}
       for (let j = 0; j < 16; j++) {
-        if(room.game.floors[i].tiles[j].notLooted || !room.game?.floors[i].tiles[j].cat || !room.game?.floors[i].tiles[j].gold){
+        if(room.game.floors[i].tiles[j].notLooted || room.game?.floors[i].tiles[j].cat || room.game?.floors[i].tiles[j].gold){
           allLooted = false;break;
         }
       }
