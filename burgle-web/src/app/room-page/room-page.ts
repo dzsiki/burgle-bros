@@ -594,6 +594,14 @@ import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-
             </div>
           }
           <dialog id="choiceDialog">
+            <button class="peek-btn"
+                    (mousedown)="startPeek()"
+                    (mouseup)="endPeek()"
+                    (mouseleave)="endPeek()"
+                    (touchstart)="startPeek()"
+                    (touchend)="endPeek()">
+              👁️
+            </button>
             <form method="dialog">
               <div class="dialog-body">
                 <p class="ap-dialog">Mit szeretnél csinálni?</p>
@@ -845,18 +853,50 @@ export class RoomPageComponent implements AfterViewInit {
   @ViewChild('appRoot') appRoot?: ElementRef<HTMLElement>;
   resizeApp() {
     if (!this.appRoot) return;
+
     const app = this.appRoot.nativeElement;
 
-    const appWidth = 1900;
-    const appHeight = 900;
+    const APP_W = 1900;
+    const BASE_H = 900;
+    let appH = BASE_H;
 
-    const scaleX = window.innerWidth / appWidth;
-    const scaleY = window.innerHeight / appHeight;
+    const scaleX = window.innerWidth / APP_W;
+    let scaleY = window.innerHeight / appH;
+    let scale = Math.min(scaleX, scaleY, 1);
 
-    const scale = Math.min(scaleX, scaleY, 1);
+    // --- Ha szélesség-limitált (van "lefelé" hely) ---
+    if (scaleX < scaleY) {
+      // Mennyi a fel nem használt függőleges hely jelenleg?
+      const unusedVertPx = window.innerHeight - (appH * scaleX); // fizikai px
+
+      // Floor fizikai max-szélessége: 780..1010
+      // Ha van hely, toljuk fel fokozatosan 1010-ig (lineárisan a maradékból).
+      const extra = Math.max(0, Math.min(230, unusedVertPx)); // 230 = 1010 - 780
+      const floorPhys = 780 + extra;
+
+      // Írjuk ki CSS-be (fizikai méret!)
+      document.documentElement.style.setProperty('--floor-max-phys', `${floorPhys}px`);
+
+      // Az app logikai magasságát növeljük annyira, hogy a +magasság beleférjen:
+      // Itt a cél, hogy a vertikális skálázás továbbra is scaleX maradjon (szélesség-limitált),
+      // tehát appH-t addig emelhetjük, amíg (appH * scaleX) <= window.innerHeight.
+      const maxLogicalH = Math.floor(window.innerHeight / scaleX);
+      // Óvatosan emeljük, de legalább a BASE_H-nál ne legyen kisebb:
+      appH = Math.max(BASE_H, Math.min(maxLogicalH, BASE_H + Math.ceil(extra / scaleX)));
+
+      // Mivel appH változott, frissítsük a scaleY-t, majd a scale-t:
+      scaleY = window.innerHeight / appH;
+      scale = Math.min(scaleX, scaleY, 1); // ez itt továbbra is scaleX lesz
+    } else {
+      // Nincs extra magasság → marad az alap 780
+      document.documentElement.style.setProperty('--floor-max-phys', `780px`);
+    }
+
+    // Végül állítsuk be az app logikai magasságát és a skálát
+    app.style.height = `${appH}px`;
+    document.documentElement.style.setProperty('--app-height', `${appH}px`);
 
     app.style.transform = `scale(${scale})`;
-
     document.documentElement.style.setProperty('--app-scale', String(scale));
   }
 
@@ -1202,7 +1242,7 @@ export class RoomPageComponent implements AfterViewInit {
       if (this.canMove(room, myPos.floor, myPos.tileIdx, dir)) {
         const targetFloor = dir === 'floorUp' ? myPos.floor + 1 : myPos.floor - 1;
         await this.moveToTile(room, targetFloor, myPos.tileIdx);
-        this.activeFloorIdx = targetFloor;
+        this.activeFloorIdx = Math.min(targetFloor, this.floorCount - 1);
       }
       return;
     }
@@ -1246,14 +1286,14 @@ export class RoomPageComponent implements AfterViewInit {
 
   triggeredMotions: Array<{fIdx: number, tIdx: number}> = [];
   private async moveToTile(room: Room, fIdx: number, tIdx: number) {
-    const game: GameState = JSON.parse(JSON.stringify(room.game));
+    let game: GameState = JSON.parse(JSON.stringify(room.game));
     const name = this.playerName ?? '';
 
     if (fIdx === this.floorCount && game.currentAP > 0){
       game.playerOrder.splice(game.playerOrder.indexOf(this.playerName), 1)
       delete game.playerPositions[this.playerName];
       if(game.playerOrder.length === 0){
-        await this.winGame(room)
+        game = await this.winGame(room, game)
         await this.roomService.setGameState(this.roomId, game);
         return
       }
@@ -1322,7 +1362,7 @@ export class RoomPageComponent implements AfterViewInit {
 
     } else {
       if (game.floors[fIdx].tiles[tIdx].type === 'Laser') {
-        if (!game.floors[fIdx].tiles[tIdx].revealed || (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1)) {
+        if (!game.floors[fIdx].tiles[tIdx].revealed || (game.inventory[this.playerName].loot.indexOf("Mirror") !== -1) || game.playerCharacter[this.playerName] === "Hacker") {
           if (!await this.useActionPoint(game, occupiedandgemstone ? 1 : 2)) {
             return;
           }
@@ -2396,7 +2436,7 @@ export class RoomPageComponent implements AfterViewInit {
       game.healths[player] = (game.healths[player] || 1) - 1;
       if(game.healths[player] === 0){ await this.loseGame(game); return}
     }
-    if (game.loots[0] === "Gold"){
+    if (game.loots[0] === "Gold" && game.playerOrder.length > 1){
       game.floors[game.playerPositions[player].floor].tiles[game.playerPositions[player].tileIdx].gold = true
     }
 
@@ -2940,7 +2980,7 @@ export class RoomPageComponent implements AfterViewInit {
     choice2.hidden = false
     choice3.hidden = false
     this.animatation = false;
-    if (choice === "Cancel") return;
+    if (choice === "Cancel") {return}
 
     const game = room.game;
 
@@ -2983,22 +3023,22 @@ export class RoomPageComponent implements AfterViewInit {
       dialog.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
 
-      dialog.onclose = async () => {
-        if (dialog.returnValue === "1") {game.hackMotion = Math.min(6,game.hackMotion + 3)}
-        if (dialog.returnValue === "2") {game.hackLaser = Math.min(6,game.hackLaser + 3)}
-        if (dialog.returnValue === "3") {game.hackFingerprint = Math.min(6,game.hackFingerprint + 3)}
+      if (choice === "1") {game.hackMotion = Math.min(6,game.hackMotion + 3)}
+      if (choice === "2") {game.hackLaser = Math.min(6,game.hackLaser + 3)}
+      if (choice === "3") {game.hackFingerprint = Math.min(6,game.hackFingerprint + 3)}
 
-        this.animatation = false;
-        choice1.hidden = false
-        choice2.hidden = false
-        choice3.hidden = false
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
 
+      if (choice !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+      if (room.game)
+      await this.roomService.setGameState(this.roomId, room.game);
 
-        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
-        if (room.game)
-        await this.roomService.setGameState(this.roomId, room.game);
-      };
     }
 
     if (tool === "Smoke") {
@@ -3060,13 +3100,7 @@ export class RoomPageComponent implements AfterViewInit {
         this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
         game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
         await this.roomService.setGameState(this.roomId, room.game);
-      }
-      else if (game.playerPositions[this.playerName].floor === this.floorCount - 1){
-        game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true
-        this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
-        game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
-        await this.roomService.setGameState(this.roomId, room.game);
-      } else {
+      }else {
         const dialog = document.getElementById("choiceDialog") as HTMLDialogElement;
         const choice1 = document.getElementById("choice-1") as HTMLDialogElement;
         const choice2 = document.getElementById("choice-2") as HTMLDialogElement;
@@ -3080,24 +3114,24 @@ export class RoomPageComponent implements AfterViewInit {
         dialog.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') {event.preventDefault();}});
         dialog.showModal();
+        const choice = await new Promise<string>((resolve) => {
+          dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
 
-        dialog.onclose = async () => {
-          if (dialog.returnValue === "1") {
-            this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
-            game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsUp = true}
-          if (dialog.returnValue === "2") {
-            this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
-            game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true}
+        if (choice === "1") {
+          this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+          game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsUp = true}
+        if (choice === "2") {
+          this.triggerAlarm(game, "Thermal",game.playerPositions[this.playerName].floor, game.playerPositions[this.playerName].tileIdx)
+          game.floors[game.playerPositions[this.playerName].floor].tiles[game.playerPositions[this.playerName].tileIdx].thermalStairsDown = true}
 
-          this.animatation = false;
-          choice1.hidden = false
-          choice2.hidden = false
-          choice3.hidden = false
+        this.animatation = false;
+        choice1.hidden = false
+        choice2.hidden = false
+        choice3.hidden = false
 
-          if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
-          if (room.game)
-            await this.roomService.setGameState(this.roomId, room.game);
-        };
+        if (choice !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+        if (room.game)
+          await this.roomService.setGameState(this.roomId, room.game);
       }
     }
 
@@ -3126,27 +3160,27 @@ export class RoomPageComponent implements AfterViewInit {
       dialog.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
 
-      dialog.onclose = async () => {
-        if (dialog.returnValue === "1") {
-          game.guardPositions[0].donut = true
-        }
-        if (dialog.returnValue === "2") {
-          game.guardPositions[1].donut = true
-        }
-        if (dialog.returnValue === "3") {
-          game.guardPositions[2].donut = true
-        }
+      if (choice === "1") {
+        game.guardPositions[0].donut = true
+      }
+      if (choice === "2") {
+        game.guardPositions[1].donut = true
+      }
+      if (choice === "3") {
+        game.guardPositions[2].donut = true
+      }
 
-        this.animatation = false;
-        choice1.hidden = false
-        choice2.hidden = false
-        choice3.hidden = false
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
 
-        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
-        if (room.game)
-          await this.roomService.setGameState(this.roomId, room.game);
-      };
+      if (choice !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+      if (room.game)
+        await this.roomService.setGameState(this.roomId, room.game);
     }
 
     if (tool === "Dynamite") {
@@ -3185,54 +3219,55 @@ export class RoomPageComponent implements AfterViewInit {
       dialog.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
 
-      dialog.onclose = async () => {
-        let idx = -1
-        if (dialog.returnValue === "1") {
-          idx = 0
-        }
-        if (dialog.returnValue === "2") {
-          idx = 1
-        }
-        if (dialog.returnValue === "3") {
-          idx = 2
-        }
-        if (dialog.returnValue === "Cancel") {
-          this.animatation = false;
-          choice1.hidden = false
-          choice2.hidden = false
-          choice3.hidden = false
-          return
-        }
-
-        if (walls[idx] === "Top"){
-          game.floors[playerFloor].tiles[playerIdx].walls.top = false
-          game.floors[playerFloor].tiles[playerIdx - 4].walls.bottom = false
-        }
-        if (walls[idx] === "Bottom"){
-          game.floors[playerFloor].tiles[playerIdx].walls.bottom = false
-          game.floors[playerFloor].tiles[playerIdx + 4].walls.top = false
-        }
-        if (walls[idx] === "Right"){
-          game.floors[playerFloor].tiles[playerIdx].walls.right = false
-          game.floors[playerFloor].tiles[playerIdx + 1].walls.left = false
-        }
-        if (walls[idx] === "Left"){
-          game.floors[playerFloor].tiles[playerIdx].walls.left = false
-          game.floors[playerFloor].tiles[playerIdx - 1].walls.right = false
-        }
-
-        this.triggerAlarm(game, "Dynamite", playerFloor, playerIdx)
-
+      let idx = -1
+      if (choice === "1") {
+        idx = 0
+      }
+      if (choice === "2") {
+        idx = 1
+      }
+      if (choice === "3") {
+        idx = 2
+      }
+      if (choice === "Cancel") {
         this.animatation = false;
         choice1.hidden = false
         choice2.hidden = false
         choice3.hidden = false
+        return
+      }
 
-        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
-        if (room.game)
-          await this.roomService.setGameState(this.roomId, room.game);
-      };
+      if (walls[idx] === "Top"){
+        game.floors[playerFloor].tiles[playerIdx].walls.top = false
+        game.floors[playerFloor].tiles[playerIdx - 4].walls.bottom = false
+      }
+      if (walls[idx] === "Bottom"){
+        game.floors[playerFloor].tiles[playerIdx].walls.bottom = false
+        game.floors[playerFloor].tiles[playerIdx + 4].walls.top = false
+      }
+      if (walls[idx] === "Right"){
+        game.floors[playerFloor].tiles[playerIdx].walls.right = false
+        game.floors[playerFloor].tiles[playerIdx + 1].walls.left = false
+      }
+      if (walls[idx] === "Left"){
+        game.floors[playerFloor].tiles[playerIdx].walls.left = false
+        game.floors[playerFloor].tiles[playerIdx - 1].walls.right = false
+      }
+
+      this.triggerAlarm(game, "Dynamite", playerFloor, playerIdx)
+
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+
+      if (choice !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+      if (room.game)
+        await this.roomService.setGameState(this.roomId, room.game);
+
     }
 
     if (tool === "Crowbar") {
@@ -3245,19 +3280,19 @@ export class RoomPageComponent implements AfterViewInit {
       let playerFloor = game.playerPositions[this.playerName].floor
       let playerIdx = game.playerPositions[this.playerName].tileIdx
 
-      if (playerIdx > 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 4].type) === -1)
+      if (playerIdx > 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 4].type) === -1 && game.floors[playerFloor].tiles[playerIdx - 4].revealed)
         choice1.innerText = "Up"
       else
         choice1.hidden = true
-      if (playerIdx % 4 !== 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 1].type) === -1)
+      if (playerIdx % 4 !== 3 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 1].type) === -1 && game.floors[playerFloor].tiles[playerIdx + 1].revealed)
         choice2.innerText = "Right"
       else
         choice2.hidden = true
-      if (playerIdx < 12 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 4].type) === -1)
+      if (playerIdx < 12 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx + 4].type) === -1 && game.floors[playerFloor].tiles[playerIdx + 4].revealed)
         choice3.innerText = "Down"
       else
         choice3.hidden = true
-      if (playerIdx % 4 !== 0 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 1].type) === -1)
+      if (playerIdx % 4 !== 0 && ['Safe', 'Stairs', 'Laboratory', 'Toilet', 'SecretDoor', 'ServiceDuct', 'ComputerLaser', 'ComputerFingerprint', 'ComputerMotion', 'Disabled'].indexOf(game.floors[playerFloor].tiles[playerIdx - 1].type) === -1 && game.floors[playerFloor].tiles[playerIdx - 1].revealed)
         {choice4.innerText = "Left"
         choice4.hidden = false}
       else
@@ -3269,31 +3304,32 @@ export class RoomPageComponent implements AfterViewInit {
       dialog.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {event.preventDefault();}});
       dialog.showModal();
+      const choice = await new Promise<string>((resolve) => {
+        dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true });});
 
-      dialog.onclose = async () => {
-        if (dialog.returnValue === "1") {
-          game.floors[playerFloor].tiles[playerIdx - 4].type = 'Disabled'
-        }
-        if (dialog.returnValue === "2") {
-          game.floors[playerFloor].tiles[playerIdx + 1].type = 'Disabled'
-        }
-        if (dialog.returnValue === "3") {
-          game.floors[playerFloor].tiles[playerIdx + 4].type = 'Disabled'
-        }
-        if (dialog.returnValue === "4") {
-          game.floors[playerFloor].tiles[playerIdx - 1].type = 'Disabled'
-        }
+      if (choice === "1") {
+        game.floors[playerFloor].tiles[playerIdx - 4].type = 'Disabled'
+      }
+      if (choice === "2") {
+        game.floors[playerFloor].tiles[playerIdx + 1].type = 'Disabled'
+      }
+      if (choice === "3") {
+        game.floors[playerFloor].tiles[playerIdx + 4].type = 'Disabled'
+      }
+      if (choice === "4") {
+        game.floors[playerFloor].tiles[playerIdx - 1].type = 'Disabled'
+      }
 
-        this.animatation = false;
-        choice1.hidden = false
-        choice2.hidden = false
-        choice3.hidden = false
-        choice4.hidden = true
+      this.animatation = false;
+      choice1.hidden = false
+      choice2.hidden = false
+      choice3.hidden = false
+      choice4.hidden = true
 
-        if (dialog.returnValue !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
-        if (room.game)
-          await this.roomService.setGameState(this.roomId, room.game);
-      };
+      if (choice !== "Cancel") {game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)}
+      if (room.game)
+        await this.roomService.setGameState(this.roomId, room.game);
+
     }
 
     if (tool === "Stethoscope") {
@@ -3328,7 +3364,6 @@ export class RoomPageComponent implements AfterViewInit {
       game.inventory[this.playerName].tool.splice(game.inventory[this.playerName].tool.indexOf(tool), 1)
       await this.roomService.setGameState(this.roomId, room.game);
     }
-
 
     if (tool === "Crystal") {
 
@@ -3418,6 +3453,8 @@ export class RoomPageComponent implements AfterViewInit {
     // UI lock + modal
     this.showCrystalDialog = true;
     this.animatation = true;
+
+    this.cdr.detectChanges()
 
     return new Promise(resolve => {
       this.crystalResolver = resolve;
@@ -4044,22 +4081,26 @@ export class RoomPageComponent implements AfterViewInit {
 
   startPeek() {
     const dlg = document.getElementById("blueprintDialog");
+    const dlg2 = document.getElementById("choiceDialog");
     if (dlg) dlg.classList.add("peek-mode");
+    if (dlg2) dlg2.classList.add("peek-mode");
   }
 
   endPeek() {
     const dlg = document.getElementById("blueprintDialog");
+    const dlg2 = document.getElementById("choiceDialog");
     if (dlg) dlg.classList.remove("peek-mode");
+    if (dlg2) dlg2.classList.remove("peek-mode");
   }
 
-  async winGame(room: Room){
+  async winGame(room: Room,game: GameState){
     this.currentPhase = "win"
     await this.roomService.setGamePhase(this.roomId,"win")
 
-    if(room.game)
+    if(game)
     for (let i = 0; i < this.floorCount; i++) {
       for (let j = 0; j < 16; j++) {
-        room.game.floors[i].tiles[j].revealed = true
+        game.floors[i].tiles[j].revealed = true
       }
     }
 
@@ -4067,16 +4108,14 @@ export class RoomPageComponent implements AfterViewInit {
       let player: Player = await this.roomService.getPlayerData(room.players[i])
       player.gameCount++
       player.winCount++
-      if (room.game)
-      for (let j = 0; j < room.game.inventory[room.players[i]].loot.length; j++) {
-        if(player.inventory.indexOf(room.game.inventory[room.players[i]].loot[j]) === -1){
-          player.inventory.push(room.game.inventory[room.players[i]].loot[j])
+      for (let j = 0; j < game.inventory[room.players[i]].loot.length; j++) {
+        if(player.inventory.indexOf(game.inventory[room.players[i]].loot[j]) === -1){
+          player.inventory.push(game.inventory[room.players[i]].loot[j])
         }
       }
       await this.roomService.updatePlayerData(room.players[i], player)
     }
-    if ( room.game)
-    await this.roomService.setGameState(this.roomId, room.game);
+    return game
   }
 
   async loseGame(game: GameState) {

@@ -65,6 +65,16 @@ const LOOT_LIST = [
                   }
 
                   <circle cx="100" cy="100" r="50" class="donut-hole"/>
+
+                  @if (p.gameCount > 0) {
+                  <text
+                    x="100" y="100"
+                    text-anchor="middle"
+                    dominant-baseline="middle"
+                    class="rate-text">
+                    <tspan x="100" dy="-0.2em">Win rate:</tspan>
+                    <tspan x="100" dy="1.2em">{{ Math.round((p.winCount / p.gameCount) * 100) }}%</tspan>
+                 </text>}
                 </svg>
 
                 <div class="legend">
@@ -121,6 +131,16 @@ const LOOT_LIST = [
       place-items: center;
       z-index: 9999;
       padding: 1rem;
+    }
+
+    .rate-text {
+      fill: #1a202c;          /* sötétszürke szín a jobb kontraszthoz */
+      font-weight: 800;
+      font-size: 16px;        /* 250×250-es viewboxhoz jól olvasható */
+      text-transform: none;   /* ha bárhol lenne globális uppercase */
+    }
+    @media (max-width: 600px) {
+      .rate-text { font-size: 14px; }
     }
 
     .profile-card {
@@ -331,4 +351,5 @@ export class ProfileComponent{
     return `assets/loot-${slug}.png`;
   }
 
+  protected readonly Math = Math;
 }

@@ -29,7 +29,7 @@ body,html {
 
 .app-root {
   width: 1900px;
-  height: 900px;
+  height: var(--app-height, 900px);
   position: relative;
   background: #f5f7fa;
   transform-origin: top left
@@ -298,7 +298,7 @@ body,html {
 
 .floor {
   width: 100%;
-  max-width: 780px;
+  max-width: calc(var(--floor-max-phys, 780px));
   flex-shrink: 0
 }
 
@@ -939,7 +939,11 @@ body,html {
 }
 
 .overlay.peek-mode {
-  opacity: .25;
+  opacity: .10;
+  pointer-events: none
+}
+#choiceDialog.peek-mode {
+  opacity: .10;
   pointer-events: none
 }
 
@@ -1464,7 +1468,8 @@ body,html {
 
 .ap-dialog-buttons {
   margin-top: 1.2rem;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 2fr;
   justify-content: center;
   gap: 1rem
 }
